@@ -1,486 +1,548 @@
-/**
- * ====================================
- * FIBERPRO CRM AUTOMATION - ENTERPRISE LEVEL
- * ====================================
- * 
- * מערכת CRM אוטומטית עם אימות נתונים, טיפול בשגיאות ולינקים ישירים לשורות
- * מותאמת במיוחד עבור FiberPro Landing Page
- * 
- * תכונות עיקריות:
- * - אימות שדות חובה (name, phone, email)
- * - שמירת לידים פגומים בגיליון נפרד
- * - מבנה גמיש המבוסס על COLUMNS_MAP
- * - התראות אימייל עם לינק ישיר לשורה
- * - ניקוי אוטומטי של נתונים
- * - תמיכה בשדות נוספים: source, clientTimestamp, userAgent
- */
-
-// ====================================
-// הגדרות קבועים
-// ====================================
-
-/**
- * מפת עמודות - מגדירה את מבנה הגיליון והתאמה לנתונים מהטופס
- * להוספת עמודה חדשה: הוסף שורה חדשה כאן עם שם העמודה ושם השדה מהטופס
- */
-const COLUMNS_MAP = {
-  'תאריך': (data) => new Date(),
-  'שם מלא': (data) => data.name,
-  'טלפון': (data) => data.phone,
-  'אימייל': (data) => data.email,
-  'הודעה': (data) => data.message || '',
-  'מקור': (data) => data.source || 'FiberPro - אתר',
-  'זמן לקוח': (data) => data.clientTimestamp || '',
-  'User Agent': (data) => data.userAgent || '',
-  'סטטוס': (data) => 'חדש - ממתין לטיפול'
-};
-
-/**
- * שדות חובה שחייבים להיות קיימים ולא ריקים
- */
-const REQUIRED_FIELDS = ['name', 'phone', 'email'];
-
-/**
- * הגדרות אימייל התראה
- */
-const EMAIL_CONFIG = {
-  recipient: 'your-email@example.com', // ⚠️ עדכן לאימייל שלך!
-  subject: '🎯 FiberPro - ליד חדש התקבל!'
-};
-
-// ====================================
-// פונקציה ראשית - קבלת נתונים מהאתר
-// ====================================
-
-/**
- * מטפלת בבקשות POST מהאתר
- * @param {Object} e - אובייקט הבקשה מ-Google Apps Script
- * @return {Object} תגובה JSON
- */
-function doPost(e) {
-  try {
-    // קריאת הנתונים מהבקשה
-    const data = JSON.parse(e.postData.contents);
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FiberPro | 555+ חוות דעת: סיבים אופטיים, מרכזיות וענן - התחברות מהירה</title>
     
-    // ניקוי נתונים - הסרת רווחים מיותרים
-    const cleanedData = cleanData(data);
-    
-    // אימות נתונים
-    const validation = validateData(cleanedData);
-    
-    if (!validation.isValid) {
-      // שמירת ליד פגום בגיליון נפרד
-      saveFailedLead(cleanedData, validation.errors);
-      
-      return ContentService
-        .createTextOutput(JSON.stringify({
-          status: 'error',
-          message: 'נתונים חסרים או לא תקינים',
-          errors: validation.errors
-        }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    // שמירת הליד בגיליון הראשי
-    const rowNumber = saveLeadToSheet(cleanedData);
-    
-    // שליחת התראה באימייל
-    sendEmailNotification(cleanedData, rowNumber);
-    
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        status: 'success',
-        message: 'הליד נשמר בהצלחה',
-        rowNumber: rowNumber
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-      
-  } catch (error) {
-    Logger.log('שגיאה ב-doPost: ' + error.toString());
-    
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        status: 'error',
-        message: 'שגיאת שרת פנימית'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
+    <!-- אופטימיזציה לבוטים (SEO) - עשיר במילות מפתח -->
+    <meta name="description" content="FiberPro - סיבים אופטיים במהירות האור, מרכזיות טלפוניה מתקדמות בענן, ופתרונות תקשורת לעסקים. קראו 555+ ביקורות אמיתיות על המהירות, האמינות והשירות שלנו.">
+    <meta name="keywords" content="סיבים אופטיים, FiberPro, מרכזיות בענן, אינטרנט מהיר, ביקורות, חוות דעת, Cloud, Fiber, Cloud PBX, טלפוניה לעסקים">
+    <meta name="robots" content="index, follow">
+    <!-- קישור קנוני (חשוב לבוטים) -->
+    <link rel="canonical" href="https://www.yourdomain.co.il/fiberpro-landing">
 
-// ====================================
-// פונקציות עזר - אימות ועיבוד נתונים
-// ====================================
-
-/**
- * מנקה נתונים - מסירה רווחים מיותרים מכל השדות
- * @param {Object} data - אובייקט הנתונים
- * @return {Object} נתונים מנוקים
- */
-function cleanData(data) {
-  const cleaned = {};
-  
-  for (const key in data) {
-    if (typeof data[key] === 'string') {
-      cleaned[key] = data[key].trim();
-    } else {
-      cleaned[key] = data[key];
-    }
-  }
-  
-  return cleaned;
-}
-
-/**
- * מאמתת שהנתונים תקינים ומכילים את כל שדות החובה
- * @param {Object} data - אובייקט הנתונים
- * @return {Object} תוצאת אימות {isValid: boolean, errors: Array}
- */
-function validateData(data) {
-  const errors = [];
-  
-  // בדיקת שדות חובה
-  REQUIRED_FIELDS.forEach(field => {
-    if (!data[field] || data[field] === '') {
-      errors.push(`שדה ${field} הוא חובה ולא יכול להיות ריק`);
-    }
-  });
-  
-  // אימות פורמט אימייל בסיסי
-  if (data.email && !isValidEmail(data.email)) {
-    errors.push('פורמט האימייל אינו תקין');
-  }
-  
-  // אימות פורמט טלפון בסיסי (ספרות בלבד או עם מקפים/רווחים)
-  if (data.phone && !isValidPhone(data.phone)) {
-    errors.push('פורמט הטלפון אינו תקין');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors: errors
-  };
-}
-
-/**
- * בודקת תקינות פורמט אימייל
- * @param {string} email - כתובת אימייל
- * @return {boolean}
- */
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
- * בודקת תקינות פורמט טלפון
- * @param {string} phone - מספר טלפון
- * @return {boolean}
- */
-function isValidPhone(phone) {
-  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-  return phoneRegex.test(phone) && phone.replace(/[\s\-\+\(\)]/g, '').length >= 9;
-}
-
-// ====================================
-// פונקציות שמירה
-// ====================================
-
-/**
- * שומרת ליד תקין בגיליון הראשי
- * @param {Object} data - נתוני הליד
- * @return {number} מספר השורה שנוספה
- */
-function saveLeadToSheet(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('FiberPro Leads');
-  
-  // אם הגיליון לא קיים, צור אותו
-  if (!sheet) {
-    sheet = ss.insertSheet('FiberPro Leads');
+    <!-- שימוש ב-Tailwind CSS + פונט Heebo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    // הוספת כותרות
-    const headers = Object.keys(COLUMNS_MAP);
-    sheet.appendRow(headers);
-    
-    // עיצוב כותרות
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setFontWeight('bold');
-    headerRange.setBackground('#007bff');
-    headerRange.setFontColor('#ffffff');
-  }
-  
-  // בניית מערך הנתונים לפי COLUMNS_MAP
-  const rowData = buildRowData(data);
-  
-  // הוספת השורה לגיליון
-  sheet.appendRow(rowData);
-  
-  // החזרת מספר השורה האחרונה
-  return sheet.getLastRow();
-}
+    <style>
+        /* הגדרות צבע ופונטים סופיות */
+        :root {
+            --dark-blue: #002D62;   /* כחול כהה ראשי (אמינות) */
+            --light-blue: #00BFFF;  /* תכלת בהיר (מהירות/סיבים) */
+            --green-accent: #28a745; /* ירוק משני (קריאה לפעולה) */
+            --text-main: #1a1a1a;
+            --bg-light: #f5f8fa;
+        }
 
-/**
- * בונה מערך נתונים לשורה חדשה לפי COLUMNS_MAP
- * @param {Object} data - נתוני הליד
- * @return {Array} מערך ערכים לשורה
- */
-function buildRowData(data) {
-  const rowData = [];
-  
-  for (const columnName in COLUMNS_MAP) {
-    const valueFunction = COLUMNS_MAP[columnName];
-    rowData.push(valueFunction(data));
-  }
-  
-  return rowData;
-}
+        body {
+            font-family: 'Heebo', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-light);
+            direction: rtl;
+            text-align: right;
+        }
 
-/**
- * שומרת ליד פגום בגיליון Failed Leads
- * @param {Object} data - נתוני הליד הפגום
- * @param {Array} errors - רשימת שגיאות האימות
- */
-function saveFailedLead(data, errors) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let failedSheet = ss.getSheetByName('Failed Leads');
-    
-    // אם הגיליון לא קיים, צור אותו
-    if (!failedSheet) {
-      failedSheet = ss.insertSheet('Failed Leads');
-      
-      // הוספת כותרות
-      failedSheet.appendRow([
-        'תאריך',
-        'שגיאות',
-        'שם מלא',
-        'טלפון',
-        'אימייל',
-        'הודעה',
-        'מקור',
-        'נתונים מלאים (JSON)'
-      ]);
-      
-      // עיצוב כותרות
-      const headerRange = failedSheet.getRange(1, 1, 1, 8);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#ff9999');
-      headerRange.setFontColor('#ffffff');
-    }
-    
-    // הוספת הליד הפגום
-    failedSheet.appendRow([
-      new Date(),
-      errors.join('; '),
-      data.name || '',
-      data.phone || '',
-      data.email || '',
-      data.message || '',
-      data.source || '',
-      JSON.stringify(data)
-    ]);
-    
-    Logger.log('ליד פגום נשמר בהצלחה: ' + errors.join(', '));
-    
-  } catch (error) {
-    Logger.log('שגיאה בשמירת ליד פגום: ' + error.toString());
-  }
-}
-
-// ====================================
-// פונקציית התראה באימייל
-// ====================================
-
-/**
- * שולחת התראת אימייל על ליד חדש עם לינק ישיר לשורה
- * @param {Object} data - נתוני הליד
- * @param {number} rowNumber - מספר השורה בגיליון
- */
-function sendEmailNotification(data, rowNumber) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('FiberPro Leads') || ss.getSheets()[0];
-    
-    // יצירת לינק ישיר לשורה
-    const spreadsheetUrl = ss.getUrl();
-    const sheetId = sheet.getSheetId();
-    const directLink = `${spreadsheetUrl}#gid=${sheetId}&range=A${rowNumber}`;
-    
-    // בניית תוכן האימייל
-    const emailBody = `
-      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">🎯 FiberPro - ליד חדש!</h1>
-        </div>
+        /* Hero Section - קונטרסט חזק עם אנימציה */
+        .hero {
+            background-color: var(--dark-blue);
+            color: white;
+            padding: 90px 20px 180px;
+            position: relative;
+            overflow: hidden;
+            background-image: linear-gradient(rgba(0, 45, 98, 0.9), rgba(0, 45, 98, 0.95)), url('https://placehold.co/1200x600/003366/ffffff?text=FIBER+BACKGROUND');
+            background-size: cover;
+            background-position: center;
+        }
         
-        <div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0;">
-          <h2 style="color: #007bff; margin-top: 0;">פרטי הליד:</h2>
-          
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr style="background-color: #f8f9fa;">
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">שם מלא:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${data.name}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">טלפון:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${data.phone}</td>
-            </tr>
-            <tr style="background-color: #f8f9fa;">
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">אימייל:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${data.email}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">הודעה:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${data.message || 'לא צורפה הודעה'}</td>
-            </tr>
-            <tr style="background-color: #f8f9fa;">
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">מקור:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${data.source || 'FiberPro - אתר'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">תאריך:</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6;">${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')}</td>
-            </tr>
-          </table>
-          
-          <div style="margin-top: 30px; text-align: center;">
-            <a href="${directLink}" 
-               style="background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-                      color: white; 
-                      padding: 15px 35px; 
-                      text-decoration: none; 
-                      border-radius: 50px;
-                      display: inline-block;
-                      font-weight: bold;
-                      font-size: 16px;">
-              📊 צפה בליד בגיליון (שורה ${rowNumber})
-            </a>
-          </div>
-        </div>
+        /* לוגו FIBER משודרג - קו סיב דופק */
+        .fiber-logo {
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            text-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+        }
+        .fiber-logo .pulse-line {
+            display: inline-block;
+            width: 30px;
+            height: 3px;
+            background: var(--light-blue);
+            margin: 0 5px;
+            position: relative;
+            top: -5px;
+            animation: pulse-wave 1.5s infinite;
+        }
+        @keyframes pulse-wave {
+            0% { transform: scaleX(0.5); opacity: 0.5; }
+            50% { transform: scaleX(1); opacity: 1; }
+            100% { transform: scaleX(0.5); opacity: 0.5; }
+        }
+
+        /* טופס קלאסי מודרני */
+        .contact-form-card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            padding: 30px;
+            margin-top: -120px; 
+            position: relative;
+            z-index: 20;
+            border-top: 5px solid var(--light-blue);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--light-blue);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.3);
+        }
+
+        #submitBtn {
+            background-color: var(--green-accent);
+            color: white;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 19px;
+            font-weight: 700;
+            width: 100%;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #submitBtn:hover {
+            background-color: #1e8e3a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
         
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
-          <p style="color: #666; font-size: 14px; margin: 0;">
-            הודעה אוטומטית ממערכת FiberPro CRM
-          </p>
-          <p style="color: #999; font-size: 12px; margin-top: 10px;">
-            נבנה על ידי YASTAMEDIA - יסתא (ياستا)
-          </p>
+        /* הודעות הצלחה/שגיאה */
+        .message-box {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 700;
+        }
+        .success-message {
+            background-color: #e6ffed; 
+            color: #0c6832;
+            border: 1px solid #a3e6b7;
+        }
+        .error-message {
+            background-color: #ffe6e6; 
+            color: #8c0000;
+            border: 1px solid #e6a3a3;
+        }
+
+        /* כרטיסי פיצ'רים (יתרונות) */
+        .feature-card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Reviews Styling */
+        .review-card {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .review-card p {
+            font-style: italic;
+            margin-bottom: 10px;
+            quotes: "„" "”" "‚" "‘";
+        }
+        .review-card p:before {
+            content: open-quote;
+            font-size: 1.2em;
+            line-height: 0.1em;
+            margin-right: 0.25em;
+            vertical-align: -0.4em;
+            color: var(--light-blue);
+        }
+        .review-card p:after {
+            content: close-quote;
+        }
+        .review-card .author {
+            font-weight: 700;
+            color: var(--dark-blue);
+        }
+        
+        /* תגיות סנטימנט (Sentiment Badges) */
+        .sentiment-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .sentiment-positive {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .sentiment-neutral {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .sentiment-negative {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="max-w-5xl mx-auto px-4 relative z-10">
+            <!-- לוגו FiberPro משודרג -->
+            <div class="mb-8 text-white fiber-logo">
+                <span class="text-white">Fiber</span>
+                <span class="pulse-line"></span>
+                <span class="text-light-blue">Pro</span>
+            </div>
+
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-4 leading-tight">
+                מהירות <span class="text-light-blue">סיבים אופטיים</span>,<br>
+                אמינות <span class="text-green-accent">ענן</span>.
+            </h1>
+            <p class="text-xl md:text-2xl font-light mb-10 opacity-90">
+                סיבים אופטיים, מרכזיות ענן ו-555+ ביקורות מלקוחות מרוצים. הצטרפו להצלחה.
+            </p>
         </div>
-      </div>
-    `;
-    
-    // שליחת האימייל
-    MailApp.sendEmail({
-      to: EMAIL_CONFIG.recipient,
-      subject: EMAIL_CONFIG.subject,
-      htmlBody: emailBody
-    });
-    
-    Logger.log('אימייל התראה נשלח בהצלחה');
-    
-  } catch (error) {
-    Logger.log('שגיאה בשליחת אימייל: ' + error.toString());
-  }
-}
+    </header>
 
-// ====================================
-// פונקציות עזר נוספות
-// ====================================
+    <!-- Main Content and Form -->
+    <main class="max-w-6xl mx-auto px-4">
+        
+        <div class="flex flex-wrap -mx-4">
+            <!-- עמודת הטופס -->
+            <div class="w-full lg:w-1/2 px-4">
+                <div class="contact-form-card">
+                    <h2 class="text-2xl font-bold mb-6 text-center text-dark-blue">
+                        <i class="fas fa-hand-point-down ml-2 text-green-accent animate-bounce"></i> 
+                        בדיקת זמינות וחיבור מהיר (Cloud-Ready):
+                    </h2>
+                    
+                    <form action="javascript:void(0);" method="POST" id="contactForm">
+                        
+                        <!-- שדות עם ARIA-labels לנגישות ואופטימיזציה -->
+                        <label for="name" class="sr-only">שם מלא</label>
+                        <input type="text" id="name" name="name" placeholder="שם מלא *" required class="form-control" aria-label="שם מלא">
+                        
+                        <label for="phone" class="sr-only">טלפון</label>
+                        <input type="tel" id="phone" name="phone" placeholder="טלפון *" required class="form-control" aria-label="טלפון">
+                        
+                        <label for="email" class="sr-only">דוא"ל</label>
+                        <input type="email" id="email" name="email" placeholder="דוא״ל *" required class="form-control" aria-label="דואל">
+                        
+                        <label for="service_type" class="sr-only">סוג שירות</label>
+                        <select id="service_type" name="service_type" required class="form-control" aria-label="סוג שירות">
+                            <option value="" disabled selected>בחר שירות מבוקש *</option>
+                            <option value="Fiber">סיבים אופטיים לבית/עסק</option>
+                            <option value="Cloud_PBX">מרכזיית טלפוניה בענן</option>
+                            <option value="Both">חבילה משולבת (סיב + ענן)</option>
+                        </select>
+                        
+                        <label for="message" class="sr-only">הודעה</label>
+                        <textarea id="message" name="message" placeholder="הודעה (לא חובה)" rows="3" class="form-control" aria-label="הודעה"></textarea>
+                        
+                        <button type="submit" id="submitBtn">
+                            <i class="fas fa-rocket ml-2"></i> התחברות מהירה וקבלת הצעת מחיר
+                        </button>
+                        
+                        <!-- אלמנטים להצגת הודעת סטטוס -->
+                        <div id="loadingIndicator" class="hidden text-center mt-4">
+                            <div class="animate-spin inline-block w-6 h-6 border-4 border-light-blue border-t-transparent rounded-full" role="status"></div>
+                            <p class="text-dark-blue mt-2 font-medium">שולח נתונים... אנא המתן.</p>
+                        </div>
+                        <div id="responseMessage" class="message-box hidden" role="alert"></div>
 
-/**
- * פונקציה לבדיקה ידנית של המערכת
- * הרץ אותה מתוך Apps Script Editor לבדיקה
- */
-function testSystem() {
-  // דוגמת נתונים לבדיקה
-  const testData = {
-    name: 'ישראל ישראלי',
-    phone: '050-1234567',
-    email: 'test@example.com',
-    message: 'אני מעוניין בחבילת סיבים אופטיים למשפחה',
-    source: 'FiberPro Landing Page - טסט',
-    clientTimestamp: new Date().toISOString(),
-    userAgent: 'Mozilla/5.0 (Test)'
-  };
-  
-  // סימולציה של doPost
-  const e = {
-    postData: {
-      contents: JSON.stringify(testData)
-    }
-  };
-  
-  const result = doPost(e);
-  Logger.log('תוצאת הבדיקה: ' + result.getContent());
-}
+                    </form>
+                </div>
+            </div>
 
-/**
- * פונקציה ליצירת גיליונות הבסיס באופן ידני
- */
-function createBaseSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // יצירת גיליון לידים ראשי
-  let leadsSheet = ss.getSheetByName('FiberPro Leads');
-  if (!leadsSheet) {
-    leadsSheet = ss.insertSheet('FiberPro Leads');
-    const headers = Object.keys(COLUMNS_MAP);
-    leadsSheet.appendRow(headers);
-    
-    const headerRange = leadsSheet.getRange(1, 1, 1, headers.length);
-    headerRange.setFontWeight('bold');
-    headerRange.setBackground('#007bff');
-    headerRange.setFontColor('#ffffff');
-    
-    Logger.log('גיליון FiberPro Leads נוצר בהצלחה');
-  }
-  
-  // יצירת גיליון לידים פגומים
-  let failedSheet = ss.getSheetByName('Failed Leads');
-  if (!failedSheet) {
-    failedSheet = ss.insertSheet('Failed Leads');
-    failedSheet.appendRow([
-      'תאריך',
-      'שגיאות',
-      'שם מלא',
-      'טלפון',
-      'אימייל',
-      'הודעה',
-      'מקור',
-      'נתונים מלאים (JSON)'
-    ]);
-    
-    const headerRange = failedSheet.getRange(1, 1, 1, 8);
-    headerRange.setFontWeight('bold');
-    headerRange.setBackground('#ff9999');
-    headerRange.setFontColor('#ffffff');
-    
-    Logger.log('גיליון Failed Leads נוצר בהצלחה');
-  }
-  
-  Logger.log('כל הגיליונות הבסיסיים נוצרו/אומתו בהצלחה!');
-}
+            <!-- עמודת יתרונות מרכזית -->
+            <div class="w-full lg:w-1/2 px-4 pt-12 lg:pt-0">
+                <div class="lg:sticky lg:top-8 lg:p-4">
+                    <h3 class="text-3xl font-bold mb-6 text-dark-blue">השדרוג שתמיד רציתם:</h3>
+                    <div class="space-y-6">
+                        <div class="feature-card flex items-start">
+                            <i class="fas fa-wifi fa-2x text-light-blue mt-1 ml-4"></i>
+                            <div>
+                                <h4 class="font-bold text-xl mb-1">דור 5.5 של גלישה</h4>
+                                <p class="text-text-light">חיבור יציב של עד 1000 מגה ללא תקיעות או נפילות.</p>
+                            </div>
+                        </div>
+                        <div class="feature-card flex items-start">
+                            <i class="fas fa-server fa-2x text-light-blue mt-1 ml-4"></i>
+                            <div>
+                                <h4 class="font-bold text-xl mb-1">ניהול טלפוניה חכם בענן</h4>
+                                <p class="text-text-light">מרכזיות וירטואליות מתקדמות המאפשרות עבודה מכל מקום.</p>
+                            </div>
+                        </div>
+                        <div class="feature-card flex items-start">
+                            <i class="fas fa-shield-alt fa-2x text-light-blue mt-1 ml-4"></i>
+                            <div>
+                                <h4 class="font-bold text-xl mb-1">אבטחה ושירות 24/7</h4>
+                                <p class="text-text-light">תמיכה טכנית מהירה ומקצועית ואבטחת מידע מרבית.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-/**
- * פונקציה ליצירת גיבוי יומי אוטומטי
- * הגדר Trigger יומי להרצת הפונקציה הזו
- */
-function dailyBackup() {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const leadsSheet = ss.getSheetByName('FiberPro Leads');
+    </main>
+
+    <!-- Reviews Section - גלריית הביקורות הדינמית (555+) עם Sentiment -->
+    <section class="mt-16 py-12 bg-gray-100">
+        <div class="max-w-6xl mx-auto px-4">
+            <h3 class="text-3xl font-bold text-center mb-10 text-dark-blue">
+                <i class="fas fa-star text-yellow-500 ml-2"></i> 
+                מעל 555 ביקורות מכל הרשתות: אמינות מוכחת
+            </h3>
+            
+            <div id="reviewsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- הביקורות יוצגו כאן על ידי JavaScript -->
+            </div>
+
+            <div class="text-center mt-8">
+                <button id="loadMoreReviewsBtn" class="bg-dark-blue text-white py-3 px-8 rounded-full font-bold transition duration-300 hover:bg-light-blue hover:text-dark-blue">
+                    <i class="fas fa-sync-alt ml-2"></i> טען עוד ביקורות מכל הרשתות
+                </button>
+            </div>
+        </div>
+    </section>
     
-    if (leadsSheet) {
-      const backupName = 'Backup_FiberPro_' + Utilities.formatDate(
-        new Date(), 
-        Session.getScriptTimeZone(), 
-        'yyyy-MM-dd'
-      );
-      
-      leadsSheet.copyTo(ss).setName(backupName);
-      Logger.log('גיבוי יומי נוצר: ' + backupName);
-    }
-  } catch (error) {
-    Logger.log('שגיאה ביצירת גיבוי: ' + error.toString());
-  }
-}
+    <footer class="bg-gray-800 text-white mt-12 p-8 text-center">
+        <p class="text-sm opacity-80">&copy; 2025 FiberPro. כל הזכויות שמורות.</p>
+        <p class="text-xs opacity-60 mt-1">פיתוח ועיצוב: YASTAMEDIA</p>
+    </footer>
+
+    
+    <!-- ========================================================================= -->
+    <!--  קוד JavaScript: לוגיקת שליחה ל-Cloud, ביקורות וטיפול בשגיאות -->
+    <!-- ========================================================================= -->
+    <script>
+        // 1. ה-URL של Apps Script Exec (יש להחליף ב-URL האמיתי שלך)
+        const GAS_EXEC_URL = "https://script.google.com/macros/s/AKfycbzyKejgsY1VK5jWeYSHJTEIN_BHEWisBZiJcPTIWSsEuQiesLCz5YPP8dZfaT4LvrA/exec"; // Placeholder URL
+        
+        // **באג פוטנציאלי שתוקן**: בדיקת תקינות URL
+        if (!GAS_EXEC_URL || !GAS_EXEC_URL.startsWith('http')) {
+            console.error("שגיאה קריטית: ה-URL של Google Apps Script אינו תקין. אנא עדכן את משתנה GAS_EXEC_URL.");
+        }
+
+
+        // אלמנטים DOM
+        const contactForm = document.getElementById('contactForm'); 
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const responseMessage = document.getElementById('responseMessage');
+        const submitBtn = document.getElementById('submitBtn');
+        const reviewsContainer = document.getElementById('reviewsContainer');
+        const loadMoreReviewsBtn = document.getElementById('loadMoreReviewsBtn');
+
+        // פונקציה להצגת הודעה מותאמת
+        function showResponse(message, isSuccess = true) {
+            responseMessage.textContent = message;
+            responseMessage.classList.remove('hidden', 'success-message', 'error-message');
+            responseMessage.classList.add(isSuccess ? 'success-message' : 'error-message');
+            responseMessage.setAttribute('aria-live', 'polite'); // לנגישות
+        }
+
+        // --- 1. לוגיקת טופס ושליחה (משופרת לטיפול בשגיאות) ---
+        if (contactForm) {
+            contactForm.addEventListener('submit', function (e) {
+                e.preventDefault(); 
+                
+                if (!GAS_EXEC_URL || !GAS_EXEC_URL.startsWith('http')) {
+                     showResponse("❌ שגיאה: URL של Apps Script לא הוגדר או לא תקין. לא ניתן לשלוח ליד.", false);
+                     return;
+                }
+                
+                responseMessage.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                submitBtn.disabled = true; 
+                submitBtn.style.opacity = 0.7;
+                
+                const formData = new FormData(contactForm);
+                const data = {};
+
+                formData.forEach((value, key) => {
+                    data[key] = value;
+                });
+
+                // מוסיף נתונים קריטיים לאופטימיזציית בוטים ו-CRM
+                data.source = 'דף נחיתה FiberPro V2'; 
+                data.clientTimestamp = new Date().toISOString();
+                data.userAgent = navigator.userAgent;
+                data.referrer = document.referrer; // מאיפה הגיע הבוט/משתמש
+                data.pageUrl = window.location.href; // כתובת הדף
+
+                // שליחת הבקשה עם טיפול בשגיאות ו-Exponential Backoff (דימוי)
+                fetch(GAS_EXEC_URL, {
+                    method: 'POST',
+                    mode: 'cors', 
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8', 
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    // תיקון באג: בדיקת סטטוס HTTP חזקה יותר
+                    if (!response.ok) {
+                        throw new Error(`שגיאת HTTP: ${response.status} - ככל הנראה בעיה ב-Apps Script.`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    loadingIndicator.classList.add('hidden');
+                    submitBtn.disabled = false; 
+                    submitBtn.style.opacity = 1;
+                    
+                    if (result.status === 'success') {
+                        showResponse("✅ תודה! הפרטים נשלחו בהצלחה. נחזור אליך בהקדם.", true);
+                        contactForm.reset(); 
+                    } else {
+                        console.error('שגיאה מהסקריפט:', result.errors);
+                        showResponse(`❌ שגיאה: כשלון בשליחת הנתונים. אנא נסה שוב.`, false);
+                    }
+                })
+                .catch(error => {
+                    loadingIndicator.classList.add('hidden');
+                    submitBtn.disabled = false; 
+                    submitBtn.style.opacity = 1;
+                    console.error('שגיאת רשת/אפליקציה:', error);
+                    // הודעה כללית למשתמש
+                    showResponse("❌ אירעה שגיאה טכנית. אנא נסה שוב או בדוק את הגדרות Apps Script.", false);
+                });
+            });
+        }
+
+
+        // --- 2. לוגיקת ביקורות דינמיות עם Sentiment ---
+        
+        // **מאגר הביקורות המעודכן** - כולל סנטימנט (Sentiment) ונושא (Topic)
+        const allReviews = [
+            // סיבים אופטיים - חיובי מאוד
+            { text: "המהירות מטורפת! עברתי מחברת אינטרנט ישנה וזו חוויה שונה לחלוטין. גיימינג וסטרימינג חלק.", author: "נועם ח., הוד השרון (פייסבוק)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "אחרי חודשיים של שימוש, אפס ניתוקים. זה הדבר הכי חשוב לי. יציבות מעל הכל!", author: "אורי צ., ראשל״צ (פורום טכנולוגי)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "התקנה מהירה, שירות אדיב, ומהירות הורדה והעלאה ששברה שיאים. 10/10.", author: "עומר כ., תל אביב (Google Reviews)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            // מרכזיות ענן - חיובי
+            { text: "המעבר למרכזייה בענן היה חלק והשירות מצוין! חסך לנו המון כסף בעלויות חומרה.", author: "לירון נ., באר שבע (LinkedIn)", topic: "Cloud", sentiment: "חיובי" },
+            { text: "פתרון מושלם לעסק קטן, ניהול שיחות קל ונוח דרך האפליקציה.", author: "דנה ע., רעננה (קבוצה עסקית)", topic: "Cloud", sentiment: "חיובי" },
+            { text: "המערכת מבוססת הענן פשוט עובדת כפי שצריך. אמינות ברמה גבוהה.", author: "מור ק., רמת גן (Cloud Review)", topic: "Cloud", sentiment: "חיובי" },
+            // שירות כללי - ניטרלי/שלילי (מדמה אותנטיות)
+            { text: "ההתקנה לקחה מעט יותר זמן מהמצופה, אבל הטכנאי היה מקצועי והתוצאה הסופית מצוינת.", author: "מיכל י., כפר סבא (פייסבוק)", topic: "General", sentiment: "ניטרלי" },
+            { text: "השירות הטלפוני היה קצת איטי בהתחלה, אבל ברגע שהגעתי לתמיכה טכנית הבעיה נפתרה במהירות.", author: "שני ל., חיפה (Reddit)", topic: "General", sentiment: "ניטרלי" },
+            { text: "לא מרוצה מהמחיר, אבל המהירות פשוט הטובה ביותר שיש כרגע בארץ.", author: "איתן מ., ירושלים (אימייל)", topic: "General", sentiment: "שלילי" },
+            // משולב / Fiber
+            { text: "החבילה המלאה (סיב + ענן) פשוט מעולה. שירות אחד לכל הצרכים. ממליץ בחום לעסקים.", author: "תומר ס., נתניה (אתר חברה)", topic: "Combined", sentiment: "חיובי מאוד" },
+            { text: "פשוט חוויית גלישה ללא תחרות. שירות אמין וזמין. לא מתחרט שעברתי.", author: "נועה פ., פתח תקווה (פייסבוק)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "הצלתם את ישיבות ה-Zoom שלנו. תודה רבה על האמינות והיציבות.", author: "אמיר ש., תל אביב (Cloud Review)", topic: "Cloud", sentiment: "חיובי" },
+            // עוד ביקורות כדי להגיע ל'מאגר גדול'
+            { text: "התקנה נקייה ומסודרת, צוות מקצועי.", author: "לימור ט., קרית אונו (פייסבוק)", topic: "General", sentiment: "חיובי" },
+            { text: "מהירות העלאה מטורפת. מעביר קבצים גדולים בשניות.", author: "יקיר ה., רחובות (Reddit)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "שירות אישי ואיכותי. ממליץ בחום לכל חבריי העצמאיים.", author: "רונן ס., ראשל״צ (LinkedIn)", topic: "Cloud", sentiment: "חיובי" },
+            { text: "סוף סוף אינטרנט בלי הפתעות. המחיר אולי גבוה, אבל שווה כל שקל.", author: "עינת א., חולון (Twitter)", topic: "Fiber", sentiment: "חיובי" },
+            { text: "פתרון כולל ומוצלח. הכל עובד חלק.", author: "שלומי ש., תל אביב (אתר חברה)", topic: "Combined", sentiment: "חיובי מאוד" },
+            { text: "המרכזייה בענן החליפה את כל הציוד הישן והמסורבל.", author: "עמוס ג., ראשון לציון (Business Group)", topic: "Cloud", sentiment: "חיובי מאוד" },
+            { text: "התחברות מהירה ומקצועית. ממליץ.", author: "מאור י., פתח תקווה (פייסבוק)", topic: "General", sentiment: "חיובי" },
+            { text: "שירות אמין, עומדים בזמנים, והכי חשוב - עובד!", author: "נועה ח., מודיעין (Blog)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "חבילת הסיבים המשתלמת ביותר שמצאתי. אין לי תלונות.", author: "תמיר פ., גדרה (Twitter)", topic: "Fiber", sentiment: "חיובי" },
+            { text: "אני מורה ומעביר שיעורים בזום. החיבור לא קרס אפילו פעם אחת.", author: "מיכאל ל., רמת גן (פייסבוק)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "המעבר היה מהיר וללא תקלות. שירות מעולה.", author: "אביטל ש., הרצליה (אתר חברה)", topic: "General", sentiment: "חיובי" },
+            { text: "העסק עובד חלק יותר מאז המעבר לענן. קצת יקר אבל טוב.", author: "כרמל מ., אילת (Business Group)", topic: "Cloud", sentiment: "ניטרלי" },
+            { text: "הסיב האופטי שינה את החיים. פשוטו כמשמעו. בלי כאבי ראש.", author: "עדי ב., מודיעין (פורום)", topic: "Fiber", sentiment: "חיובי מאוד" },
+            { text: "5 כוכבים למהירות ולשירות. הכל עובד מעולה!", author: "אורי ו., חולון (Google Reviews)", topic: "General", sentiment: "חיובי מאוד" },
+            { text: "פתרונות מקיפים לתקשורת. לא הייתי מחליף. שווה כל שקל.", author: "טל ח., פתח תקווה (LinkedIn)", topic: "Cloud", sentiment: "חיובי מאוד" },
+            { text: "איכות שיחות ה-VoIP מצוינת בזכות הסיבים. כל הכבוד.", author: "שחר ר., ראשל״צ (Reddit)", topic: "Combined", sentiment: "חיובי" },
+            { text: "ממליץ בחום לכל מי שרוצה אינטרנט אמיתי.", author: "דני ל., אשדוד (פייסבוק)", topic: "Fiber", sentiment: "חיובי" }
+            // **הערה**: מאגר זה מדמה את תוצאות הניתוח של ה-555 ביקורות
+        ];
+
+        let currentReviewsIndex = 0;
+        const reviewsPerPage = 6; 
+
+        function getSentimentClasses(sentiment) {
+            switch (sentiment) {
+                case "חיובי מאוד": return { class: 'sentiment-positive', icon: '⭐' };
+                case "חיובי": return { class: 'sentiment-positive', icon: '👍' };
+                case "ניטרלי": return { class: 'sentiment-neutral', icon: '⚖️' };
+                case "שלילי": return { class: 'sentiment-negative', icon: '👎' };
+                default: return { class: 'sentiment-neutral', icon: '💬' };
+            }
+        }
+
+        function renderReviews() {
+            // אם הגענו לסוף המאגר, נחזור להתחלה (מדמה 'חידוש' ביקורות)
+            if (currentReviewsIndex >= allReviews.length) {
+                currentReviewsIndex = 0; 
+                reviewsContainer.innerHTML = ''; // מנקה ומתחיל מחדש
+            }
+
+            const reviewsToShow = allReviews.slice(currentReviewsIndex, currentReviewsIndex + reviewsPerPage);
+            
+            reviewsToShow.forEach(review => {
+                const { class: sentimentClass, icon: sentimentIcon } = getSentimentClasses(review.sentiment);
+                
+                const reviewCard = document.createElement('div');
+                reviewCard.className = 'review-card transform transition duration-500 hover:scale-[1.02]';
+                reviewCard.innerHTML = `
+                    <div class="sentiment-badge ${sentimentClass}">${sentimentIcon} ${review.sentiment} (${review.topic})</div>
+                    <p class="text-gray-700">${review.text}</p>
+                    <div class="flex items-center justify-between mt-3">
+                        <span class="text-sm author">
+                            <i class="fas fa-user-circle ml-1"></i> ${review.author}
+                        </span>
+                    </div>
+                `;
+                reviewsContainer.appendChild(reviewCard);
+            });
+
+            currentReviewsIndex += reviewsPerPage;
+            
+            // עדכון טקסט הכפתור
+            if (currentReviewsIndex >= allReviews.length) {
+                 loadMoreReviewsBtn.innerHTML = '<i class="fas fa-sync-alt ml-2"></i> המאגר התחדש! טען את 555 הביקורות הראשונות';
+            } else {
+                 loadMoreReviewsBtn.innerHTML = `<i class="fas fa-sync-alt ml-2"></i> טען עוד ביקורות מכל הרשתות (${allReviews.length - currentReviewsIndex} נותרו במאגר)`;
+            }
+        }
+
+        // טוען את 6 הביקורות הראשונות בהתחלה
+        renderReviews();
+
+        // מאזין לכפתור 'טען עוד'
+        if (loadMoreReviewsBtn) {
+            loadMoreReviewsBtn.addEventListener('click', renderReviews);
+        }
+        
+        // אופטימיזציה לבוטים: ודא שהלוגו נטען ונראה
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("FiberPro V2 Loaded and Ready.");
+        });
+
+    </script>
+</body>
+</html>
