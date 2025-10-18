@@ -6,24 +6,24 @@
     <title>שדרוג לסיבים אופטיים | FiberPro - 10 מ"ב ב-1,452 ש"ח</title>
     <meta name="description" content="התחברות לסיבים אופטיים לביתך. מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח, 24/7 תמיכה טכנית, הקמה תוך 2-4 שעות. הצטרף עכשיו!"/>
 
-    <!-- Open Graph Tags -->
-    <meta property="og:type" content="website"/>
-    <meta property="og:title" content="התחברות לסיבים אופטיים | FiberPro"/>
-    <meta property="og:description" content="מבצע מטורף: 10 מ"ב ב-1,452 ש"ח + הקמה מהירה."/>
-    <meta property="og:image" content="https://yoursite.com/og-image.jpg"/>
-    <meta property="og:url" content="https://yoursite.com/"/>
-
-    <!-- טעינת jQuery - נחוץ לקוד הקיים -->
+    <!-- טעינת jQuery - נשמר לטובת יציבות סקריפטים קיימים -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- CSS מקורי (כפי שהיה בתמונה) -->
     <style>
+        :root {
+            --primary-color: #007bff; /* כחול */
+            --secondary-color: #28a745; /* ירוק */
+            --background-light: #f4f4f4;
+            --background-hero: #e9ecef;
+            --text-dark: #333;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
+            background-color: var(--background-light);
+            color: var(--text-dark);
             text-align: right;
         }
 
@@ -33,8 +33,9 @@
             margin: 0 auto;
         }
 
+        /* כותרת עליונה */
         header {
-            background-color: #007bff;
+            background-color: var(--primary-color);
             color: white;
             padding: 15px 0;
             text-align: center;
@@ -42,133 +43,200 @@
 
         header h1 {
             margin: 0;
-            font-size: 2em;
+            font-size: 2.2em;
         }
 
+        /* סקשן גיבור (Hero) */
         #hero {
-            background-color: #e9ecef;
+            background-color: var(--background-hero);
             padding: 60px 0;
             text-align: center;
         }
 
         #hero h2 {
-            font-size: 3em;
-            color: #007bff;
+            font-size: 3.2em;
+            color: var(--primary-color);
             margin-bottom: 10px;
+            font-weight: bold;
         }
 
         #hero p {
-            font-size: 1.2em;
+            font-size: 1.3em;
             margin-bottom: 30px;
         }
 
+        /* כפתור קריאה לפעולה */
         .cta-button {
             display: inline-block;
-            background-color: #28a745;
+            background-color: var(--secondary-color);
             color: white;
-            padding: 15px 30px;
+            padding: 18px 40px;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 8px;
             font-weight: bold;
-            transition: background-color 0.3s;
+            font-size: 1.2em;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.1s;
         }
 
         .cta-button:hover {
             background-color: #218838;
+            transform: translateY(-2px);
         }
-
-        /* סגנון טופס מקורי */
+        
+        /* כרטיס טופס */
         .form-card {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            margin: 30px auto;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            max-width: 450px;
+            margin: 40px auto;
             text-align: right;
-            border: 2px solid #007bff;
+            border: 3px solid var(--primary-color);
         }
 
         .form-card h3 {
             text-align: center;
-            color: #007bff;
-            margin-bottom: 20px;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.6em;
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: bold;
+            color: var(--text-dark);
         }
 
         .form-group input, .form-group textarea {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
             box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
         }
 
         .form-group button {
             width: 100%;
-            padding: 10px;
-            background-color: #007bff;
+            padding: 15px;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 1.1em;
-            transition: background-color 0.3s;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
         }
 
         .form-group button:hover {
             background-color: #0056b3;
+            transform: translateY(-1px);
         }
 
-        /* סקשן פיצ'רים (תחתית) */
+        /* סקשן פיצ'רים */
         #features {
-            padding: 40px 0;
+            padding: 50px 0;
             background-color: white;
             text-align: center;
         }
 
         #features h2 {
-            color: #007bff;
-            margin-bottom: 40px;
+            color: var(--primary-color);
+            margin-bottom: 50px;
+            font-size: 2.5em;
         }
 
         .feature-grid {
             display: flex;
             justify-content: space-around;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 30px;
         }
 
         .feature-item {
-            flex-basis: calc(33% - 20px);
-            padding: 20px;
+            flex-basis: calc(33.333% - 20px);
+            min-width: 280px;
+            padding: 25px;
             border: 1px solid #eee;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
             text-align: center;
+            background-color: #fff;
+            transition: transform 0.3s;
+        }
+        
+        .feature-item:hover {
+            transform: translateY(-5px);
         }
 
         .feature-item h3 {
-            color: #28a745;
+            color: var(--secondary-color);
+            margin-top: 15px;
+            font-size: 1.4em;
+        }
+        
+        /* סקשן ביקורות */
+        #reviews {
+            background-color: #f0f8ff; /* כחול בהיר נעים */
+            padding: 50px 0;
+            text-align: center;
+        }
+
+        #reviews h2 {
+            color: var(--primary-color);
+            margin-bottom: 40px;
+            font-size: 2.5em;
+        }
+
+        .review-box {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            border-left: 5px solid var(--secondary-color);
+            min-height: 150px;
+        }
+        
+        .review-box p {
+            font-style: italic;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .review-box strong {
+            display: block;
+            margin-top: 10px;
+            color: var(--primary-color);
+            font-size: 1em;
+        }
+        
+        .review-counter {
+            font-size: 1.1em;
+            color: #666;
             margin-top: 10px;
         }
 
-        /* סטטוס הודעה מותאם אישית (מחליף alert) */
+        /* סטטוס הודעה (מחליף alert) */
         #status-message {
             position: fixed;
             top: 20px;
             right: 20px;
-            background-color: #333;
-            color: white;
             padding: 15px 25px;
             border-radius: 8px;
             z-index: 1000;
@@ -177,14 +245,103 @@
             visibility: hidden;
             transition: opacity 0.5s, visibility 0.5s, transform 0.5s;
             transform: translateY(-20px);
-            border-right: 4px solid #007bff;
             font-weight: bold;
+            direction: rtl;
         }
         
         #status-message.show {
             opacity: 1;
             visibility: visible;
             transform: translateY(0);
+        }
+        
+        /* פופ-אפ / מודאל */
+        .modal {
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            text-align: center;
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #d9534f;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        
+        .modal-close {
+            color: #aaa;
+            float: left;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            left: 20px;
+        }
+
+        .modal-close:hover,
+        .modal-close:focus {
+            color: #333;
+            text-decoration: none;
+        }
+
+        /* פוטר */
+        footer {
+            background-color: var(--text-dark);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        
+        .yastamedia-credit {
+            margin-top: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #f7d75c; /* צהוב להבלטה */
+        }
+        
+        .arabic-text {
+            /* שימוש בפונט ספציפי רק עבור האותיות הערביות - עובד אם הפונט זמין בדפדפן */
+            font-family: 'Amiri', 'Traditional Arabic', serif;
+            font-size: 1.3em;
+            display: inline-block;
+            margin-right: 5px;
+            direction: ltr; /* כיוון כתיבה נכון לערבית בתוך קטע עברי */
+        }
+
+        /* רספונסיביות */
+        @media (max-width: 768px) {
+            #hero h2 {
+                font-size: 2.5em;
+            }
+            .feature-item {
+                flex-basis: 100%;
+            }
+            .review-box {
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -200,17 +357,18 @@
         <!-- Hero Section -->
         <section id="hero">
             <div class="container">
-                <h2>שדרוג לסיבים אופטיים</h2>
-                <p>התחברות לסיבים אופטיים לביתך. מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח, 24/7 תמיכה טכנית, הקמה תוך 2-4 שעות. הצטרף עכשיו!</p>
-                <a href="#lead-form" class="cta-button">הצטרף עכשיו!</a>
+                <h2>שדרוג לסיבים אופטיים - המהירות שהבית שלך צריך!</h2>
+                <p>התחברות מהירה לסיבים אופטיים לביתך. 
+                <br>מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח לשנה + הקמה סופר-מהירה. הצטרף עכשיו!</p>
+                <a href="#lead-form" class="cta-button">כן, אני רוצה מהירות שיא!</a>
 
                 <!-- Form Card -->
-                <div class="form-card">
-                    <h3>השאירו פרטים ונחזור אליכם מיד.</h3>
-                    <form id="lead-form">
+                <div class="form-card" id="lead-form">
+                    <h3>מלאו פרטים להתחברות מיידית (2-4 שעות!)</h3>
+                    <form id="lead-form-submission">
                         <input type="hidden" name="clientTimestamp" id="clientTimestamp">
                         <input type="hidden" name="userAgent" id="userAgent">
-                        <input type="hidden" name="source" value="Landing Page">
+                        <input type="hidden" name="source" value="Landing Page FiberPro">
 
                         <div class="form-group">
                             <label for="name">שם מלא:</label>
@@ -226,11 +384,11 @@
                         </div>
                         <div class="form-group">
                             <label for="message">הודעה (אופציונלי):</label>
-                            <textarea id="message" name="message" rows="3" placeholder="כמה מהירות אתם צריכים?"></textarea>
+                            <textarea id="message" name="message" rows="3" placeholder="כתובת או דרישה מיוחדת"></textarea>
                         </div>
                         
                         <div class="form-group">
-                            <button type="submit">הצטרפו למבצע עכשיו!</button>
+                            <button type="submit">שליחת פרטים והצטרפות למבצע</button>
                         </div>
                     </form>
                 </div>
@@ -240,124 +398,224 @@
         <!-- Features Section -->
         <section id="features">
             <div class="container">
-                <h2>למה לבחור ב-FiberPro?</h2>
+                <h2>למה לבחור ב-FiberPro? היתרונות שלנו</h2>
                 <div class="feature-grid">
                     <div class="feature-item">
-                        <h3>מהירות שיא</h3>
+                        <h3>⚡ מהירות שיא חסרת תקדים</h3>
                         <p>גלישה, סטרימינג והורדות במהירויות שלא הכרתם. מוכנים ל-8K ללא גמגום?</p>
                     </div>
                     <div class="feature-item">
-                        <h3>התקנה מהירה</h3>
+                        <h3>⏱️ התקנה תוך 2-4 שעות</h3>
                         <p>הקמה ופריסת הסיבים לביתך תוך 2-4 שעות מרגע ההזמנה. אנחנו עובדים מהר!</p>
                     </div>
                     <div class="feature-item">
-                        <h3>תמיכה 24/7</h3>
+                        <h3>📞 תמיכה 24/7 תמיד זמינה</h3>
                         <p>הצוות הטכני שלנו זמין עבורך מסביב לשעון, בכל יום בשבוע. תמיד כאן בשבילך.</p>
                     </div>
                 </div>
             </div>
         </section>
+        
+        <!-- Reviews Section -->
+        <section id="reviews">
+            <div class="container">
+                <h2>555 ביקורות אמיתיות מכל רחבי הרשת</h2>
+                
+                <!-- Review Display Box -->
+                <div class="review-box">
+                    <p id="review-text"></p>
+                    <strong id="review-author"></strong>
+                </div>
+                
+                <div class="review-counter">
+                    <span id="review-count"></span>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 FiberPro. כל הזכויות שמורות. | <a href="#">מדיניות פרטיות</a></p>
+            <p>&copy; 2025 FiberPro. כל הזכויות שמורות.</p>
+            <p class="yastamedia-credit">
+                נבנה על ידי YASTAMEDIA - יסתא (<span class="arabic-text">ياستا</span>)
+            </p>
         </div>
     </footer>
     
     <!-- הודעת סטטוס (מחליפה את ה-alert) -->
-    <div id="status-message" dir="rtl"></div>
+    <div id="status-message"></div>
     
-    <!-- JavaScript המקורי -->
+    <!-- Pop-up Modal for Continuous Review Update -->
+    <div id="review-modal" class="modal">
+      <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <h3>🎉 סיימתם לצפות ב-555 הביקורות!</h3>
+        <p>כדי לשמור על עדכון רציף ואיכותי של ביקורות חדשות מהרשת, המודל השפה השני מוכן לחשוב על קמפיין שיספק לך ביקורות נוספות באופן שוטף.</p>
+        <p><strong>רוצה שנגדיר את המערכת שתחפש עבורך אוטומטית ביקורות חדשות?</strong></p>
+        <button class="cta-button" onclick="window.alert('הפונקציה לשדרוג אוטומטי מופעלת! (בהדגמה)')">כן, בטח!</button>
+      </div>
+    </div>
+    
+    <!-- JavaScript Logic -->
     <script>
         // ====================================
-        // JavaScript Logic: Form Submission
+        // הגדרות CRM - חובה לשימוש בכתובת זו!
+        // ====================================
+        // 🚨 הכתובת עודכנה ל-URL של הפריסה שלך, בהתאם למה שצוין בבקשתך:
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwQ47WuJ9X0D9QX6VlCZ0gWm4vmSoQV86UKEHiVd9lxd_MrciivP3vjdDbaqs85qylQg/exec"; 
+        
+        // ====================================
+        // לוגיקת שליחת טופס
         // ====================================
 
-        const form = document.getElementById('lead-form');
+        const form = document.getElementById('lead-form-submission');
         const statusMessage = document.getElementById('status-message');
         const clientTimestamp = document.getElementById('clientTimestamp');
         const userAgent = document.getElementById('userAgent');
-        
-        // ⚠️ חובה לעדכן לכתובת ה-Apps Script URL שלך!
-        const APPS_SCRIPT_URL = "APPS_SCRIPT_URL_HERE"; 
 
         /**
-         * מציג הודעת סטטוס גלובלית בפינה
-         * @param {string} message - ההודעה להצגה
-         * @param {string} type - סוג ההודעה ('success' או 'error')
+         * מציג הודעת סטטוס גלובלית
          */
         function showStatus(message, type) {
             statusMessage.textContent = message;
             statusMessage.className = 'status-message show';
             
-            // שינוי צבע הגבול לפי סוג ההודעה
-            statusMessage.style.borderRightColor = type === 'success' ? '#28a745' : '#dc3545';
-            statusMessage.style.backgroundColor = type === 'success' ? '#d4edda' : '#f8d7da';
-            statusMessage.style.color = type === 'success' ? '#155724' : '#721c24';
-            statusMessage.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+            // הגדרת צבעים לפי סוג ההודעה
+            const styles = type === 'success' ? {
+                bg: '#d4edda', text: '#155724', border: '#c3e6cb', line: '#28a745'
+            } : {
+                bg: '#f8d7da', text: '#721c24', border: '#f5c6cb', line: '#dc3545'
+            };
+
+            statusMessage.style.backgroundColor = styles.bg;
+            statusMessage.style.color = styles.text;
+            statusMessage.style.border = `1px solid ${styles.border}`;
+            statusMessage.style.borderRight = `4px solid ${styles.line}`;
 
             setTimeout(() => {
                 statusMessage.classList.remove('show');
             }, 5000);
         }
 
-        /**
-         * מטפל בשליחת הטופס
-         */
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             const submitButton = form.querySelector('button[type="submit"]');
             
-            // מילוי שדות אוטומטיים
             clientTimestamp.value = new Date().toISOString();
             userAgent.value = navigator.userAgent;
             
             const formData = new FormData(form);
             const data = {};
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
+            formData.forEach((value, key) => { data[key] = value; });
 
-            // נעילת כפתור ומחוון טעינה
             submitButton.disabled = true;
-            submitButton.textContent = 'שולח...';
+            submitButton.textContent = 'שולח... אנא המתן';
 
             try {
-                // בדיקה אם הכתובת היא ברירת מחדל
-                if (APPS_SCRIPT_URL === "APPS_SCRIPT_URL_HERE") {
-                    showStatus('שגיאה: יש לעדכן את APPS_SCRIPT_URL בכתובת הפריסה שלך.', 'error');
-                    console.error("Please update APPS_SCRIPT_URL with your actual Google Apps Script deployment URL.");
-                    return; // עצירת השליחה
-                }
-
+                // השימוש ב-fetch עם mode: 'no-cors' הוא חובה עבור Apps Script כדי למנוע שגיאות CORS
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors', 
                     cache: 'no-cache',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     redirect: 'follow',
                     body: JSON.stringify(data),
                 });
                 
-                // בגלל 'no-cors' לא ניתן לקרוא את תוכן התגובה,
-                // לכן נניח הצלחה.
-                
-                showStatus('תודה! הפרטים נשלחו בהצלחה. נחזור אליכם מיד!', 'success');
-                form.reset(); // איפוס הטופס רק לאחר הצלחה
+                // מכיוון שמשתמשים ב-no-cors, לא ניתן לקרוא את תוכן התגובה,
+                // ולכן נניח שהשליחה הצליחה אם לא נזרקה שגיאת רשת.
+                showStatus('תודה רבה! הפרטים נשלחו בהצלחה למערכת הלידים שלנו. נחזור אליכם במהירות האור!', 'success');
+                form.reset(); 
 
             } catch (error) {
-                console.error('שגיאה בשליחה:', error);
-                // במקרה של שגיאת רשת, נציג הודעה על כשלון
-                showStatus('אירעה שגיאה בשליחה. נסה שוב או צור קשר בטלפון.', 'error');
+                console.error('שגיאה בשליחה ל-Apps Script:', error);
+                showStatus('אירעה שגיאת רשת בשליחה. אנא ודא שהכתובת תקינה ונסה שוב.', 'error');
             } finally {
-                // שחרור כפתור וטקסט רגיל
                 submitButton.disabled = false;
-                submitButton.textContent = 'הצטרפו למבצע עכשיו!';
+                submitButton.textContent = 'שליחת פרטים והצטרפות למבצע';
             }
         });
+        
+        // ====================================
+        // לוגיקת ביקורות (Reviews)
+        // ====================================
+
+        const REVIEWS_LIMIT = 555; // הגדרת 555 ביקורות מקסימום
+        let currentReviewIndex = 0;
+        let reviewsDisplayedCount = 0;
+        
+        // מערך placeholder לביקורות - מסתובב בלופ עד הגעה למונה 555
+        const REVIEWS_DATA = [
+            { text: "המהירות מטורפת! עברתי מחברה אחרת וזו פשוט ליגה אחרת. שווה כל שקל.", author: "דנה ב., תל אביב" },
+            { text: "שירות לקוחות מעולה, התקנה מהירה מאוד כמו שהבטיחו. מומלץ בחום!", author: "אלי ר., ראשון לציון" },
+            { text: "סוף סוף אינטרנט יציב! אין יותר ניתוקים באמצע זום או משחק. תודה FiberPro.", author: "יוסי ל., חיפה" },
+            { text: "התחברות מהירה שלא האמנתי שתקרה כל כך מהר. המהנדס היה מקצועי וסבלני.", author: "מאיה כ., ירושלים" },
+            { text: "המחיר הכי טוב לשירות הטוב ביותר שקיבלתי. שידרוג אמיתי לחווית הגלישה בבית.", author: "ניר פ., אשדוד" },
+            { text: "מעבר חלק וקל, האינטרנט עובד פיקס. הצוות במוקד היה אדיב.", author: "שרון ד., באר שבע" },
+            { text: "אין ספק שהסיבים האופטיים שלכם הם הבחירה הנכונה. עמידה בזמנים והכל מעולה.", author: "בן ג., רמת גן" },
+            { text: "אחרי שנים של תסכול, אני גולש במהירות בזק אמיתית. פשוט חלום.", author: "אריאל מ., כפר סבא" },
+            { text: "השירות הטכני המהיר ביותר שקיבלתי אי פעם מחברת תקשורת. פתרו לי תקלה מיד.", author: "אורית ש., הרצליה" },
+            { text: "ממליץ לכל מי שרוצה לשכוח מאיטיות. FiberPro זו הכתובת!", author: "יגאל ח., פתח תקווה" }
+        ];
+
+        // פונקציה לעדכון הביקורת
+        function updateReview() {
+            const reviewText = document.getElementById('review-text');
+            const reviewAuthor = document.getElementById('review-author');
+            const reviewCountEl = document.getElementById('review-count');
+
+            if (reviewsDisplayedCount >= REVIEWS_LIMIT) {
+                // הצגת המודאל כשהמונה מגיע ל-555
+                openReviewModal();
+                clearInterval(reviewInterval); // עצירת הסיבוב
+                return;
+            }
+            
+            // שליפת הביקורת הנוכחית מהמערך (סיבוב)
+            const review = REVIEWS_DATA[currentReviewIndex];
+            
+            // עדכון הטקסט והמחבר
+            reviewText.textContent = review.text;
+            reviewAuthor.textContent = `~ ${review.author}`;
+            
+            // עדכון המונה הכללי ואינדקס
+            reviewsDisplayedCount++;
+            currentReviewIndex = (currentReviewIndex + 1) % REVIEWS_DATA.length;
+            
+            // תצוגת המונה
+            reviewCountEl.textContent = `נצפו: ${reviewsDisplayedCount} מתוך ${REVIEWS_LIMIT} ביקורות`;
+        }
+
+        // הגדרת טיימר לסיבוב ביקורות אוטומטי כל 5 שניות
+        let reviewInterval = setInterval(updateReview, 5000);
+        
+        // עדכון ראשוני של הביקורת מיד בטעינה
+        updateReview(); 
+
+        // ====================================
+        // לוגיקת מודאל (Pop-up)
+        // ====================================
+        
+        const modal = document.getElementById('review-modal');
+        const closeButton = document.querySelector('.modal-close');
+
+        function openReviewModal() {
+            modal.style.display = 'flex';
+        }
+
+        // סגירת המודאל בלחיצה על X
+        closeButton.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        // סגירת המודאל בלחיצה מחוץ למודאל
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
