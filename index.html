@@ -1,608 +1,393 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>שדרוג לסיבים אופטיים לעסקים | FiberPro - מהירות פי 10</title>
-  <meta name="description" content="שדרוג לסיבים אופטיים לעסקים ב-149₪/חודש. מהירות עד 1000 Mbps, התקנה תוך 2-4 שעות, תמיכה 24/7. חסכו עד 70% בזמן טעינה. הצטרפו ל-1,452+ עסקים!">
+/**
+ * ====================================
+ * CRM AUTOMATION - ENTERPRISE LEVEL V2.0
+ * ====================================
+ * * מערכת CRM אוטומטית עם אימות נתונים, טיפול בשגיאות ולינקים ישירים לשורות
+ * * תכונות עיקריות (שדרוגים):
+ * 1. מנגנון מניעת כפילויות: לא שומר ליד עם טלפון/אימייל זהים ב-24 שעות האחרונות.
+ * 2. לכידת נתונים טכניים: שמירת User Agent וזמן שליחה מצד הלקוח.
+ * 3. טיפול משופר בשגיאות: שמירת לידים פגומים בגיליון נפרד.
+ * 4. קונפיגורציה מרכזית: כל ההגדרות במקום אחד.
+ */
+
+// ====================================
+// הגדרות קבועים
+// ====================================
+
+/**
+ * מפת עמודות - מגדירה את מבנה הגיליון והתאמה לנתונים מהטופס
+ * שים לב: הפונקציות כאן מושכות נתונים מה-data שנשלח מה-HTML
+ */
+const COLUMNS_MAP = {
+  'תאריך שרת': (data) => new Date(), // מתי השרת (Apps Script) קיבל את הנתון
+  'שם מלא': (data) => data.name,
+  'טלפון': (data) => data.phone,
+  'אימייל': (data) => data.email,
+  'הודעה': (data) => data.message || '',
+  'מקור': (data) => data.source || 'אתר',
+  'סטטוס': (data) => 'חדש',
+  'זמן שליחה (לקוח)': (data) => data.clientTimestamp ? new Date(data.clientTimestamp) : 'חסר', // נתון חדש מהקליינט
+  'User Agent': (data) => data.userAgent || 'חסר', // נתון חדש: מידע על הדפדפן/מכשיר
+};
+
+/**
+ * שדות חובה שחייבים להיות קיימים ולא ריקים
+ */
+const REQUIRED_FIELDS = ['name', 'phone', 'email'];
+
+/**
+ * הגדרות אימייל התראה
+ */
+const EMAIL_CONFIG = {
+  recipient: 'your-email@example.com', // ⚠️ חובה לעדכן לאימייל שלך
+  subject: '🎯 ליד חדש התקבל (FiberPro)!'
+};
+
+// ====================================
+// פונקציה ראשית - קבלת נתונים מהאתר
+// ====================================
+
+/**
+ * מטפלת בבקשות POST מהאתר.
+ * @param {Object} e - אובייקט הבקשה מ-Google Apps Script.
+ * @return {Object} תגובה JSON.
+ */
+function doPost(e) {
+  const output = (status, message, details = {}) => {
+    const response = { status, message, ...details };
+    return ContentService
+      .createTextOutput(JSON.stringify(response))
+      .setMimeType(ContentService.MimeType.JSON);
+  };
+
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const cleanedData = cleanData(data);
+    const validation = validateData(cleanedData);
+
+    // 1. בדיקת אימות בסיסית
+    if (!validation.isValid) {
+      saveFailedLead(cleanedData, validation.errors);
+      return output('error', 'נתונים חסרים או לא תקינים', { errors: validation.errors });
+    }
+
+    // 2. בדיקת כפילויות (התוספת המיוחדת!)
+    if (isDuplicateLead(cleanedData)) {
+      Logger.log(`ליד פוטנציאלי כפול נחסם: ${cleanedData.phone} / ${cleanedData.email}`);
+      // מחזירים הצלחה כדי לא לתת לבוטים אינדיקציה לשגיאה
+      return output('success', 'הליד כבר נשמר במערכת לאחרונה');
+    }
+
+    // 3. שמירת הליד התקין
+    const rowNumber = saveLeadToSheet(cleanedData);
+
+    // 4. שליחת התראה באימייל
+    sendEmailNotification(cleanedData, rowNumber);
+
+    return output('success', 'הליד נשמר בהצלחה', { rowNumber: rowNumber });
+
+  } catch (error) {
+    Logger.log('שגיאה קריטית ב-doPost: ' + error.toString());
+    return output('error', 'שגיאת שרת פנימית: ' + error.message);
+  }
+}
+
+// ====================================
+// פונקציות עזר מרכזיות
+// ====================================
+
+/**
+ * בודקת אם קיים ליד זהה (טלפון או אימייל זהים) ב-24 השעות האחרונות
+ * * @param {Object} data - נתוני הליד הנשלחים
+ * @return {boolean} true אם נמצאה כפילות, false אחרת
+ */
+function isDuplicateLead(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
+  const lastRow = sheet.getLastRow();
   
-  <link rel="canonical" href="https://yoursite.com/">
+  if (lastRow < 2) return false;
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const phoneIndex = headers.indexOf('טלפון');
+  const emailIndex = headers.indexOf('אימייל');
+  const dateIndex = headers.indexOf('תאריך שרת');
   
-  <!-- Open Graph Tags -->
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="שדרוג לסיבים אופטיים לעסקים | FiberPro">
-  <meta property="og:description" content="מהירות פי 10, התקנה מהירה, תמיכה 24/7. הצטרפו ל-1,452+ עסקים שכבר שדרגו!">
-  <meta property="og:image" content="https://yoursite.com/og-image.jpg">
-  <meta property="og:url" content="https://yoursite.com/">
+  if (phoneIndex === -1 || emailIndex === -1 || dateIndex === -1) {
+    Logger.log('אחת מכותרות העמודות (טלפון, אימייל, תאריך שרת) חסרה. לא ניתן לבצע בדיקת כפילויות.');
+    return false; // לא מבצעים בדיקה אם הכותרות חסרות
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const twentyFourHoursAgo = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
   
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  
-  <!-- Critical CSS - Dark Tech Theme -->
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const rowDate = row[dateIndex];
     
-    :root {
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #121212;
-      --bg-card: #1a1a1a;
-      --text-primary: #ffffff;
-      --text-secondary: #a0a0a0;
-      --accent-cyan: #00ffff;
-      --accent-blue: #0080ff;
-      --accent-purple: #8000ff;
-      --glow-cyan: 0 0 20px rgba(0, 255, 255, 0.5);
-      --glow-blue: 0 0 20px rgba(0, 128, 255, 0.5);
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      overflow-x: hidden;
-    }
-    
-    h1, h2, h3 {
-      font-family: 'Orbitron', sans-serif;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    
-    .gradient-bg {
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .gradient-bg::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: 
-        linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.03) 50%, transparent 100%),
-        radial-gradient(circle at 20% 50%, rgba(0, 128, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 50%, rgba(128, 0, 255, 0.1) 0%, transparent 50%);
-      animation: bgPulse 10s ease-in-out infinite;
-    }
-    
-    @keyframes bgPulse {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
-    }
-    
-    .network-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      opacity: 0.6;
-    }
-    
-    .cyber-border {
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      box-shadow: 
-        inset 0 0 20px rgba(0, 255, 255, 0.1),
-        0 0 20px rgba(0, 255, 255, 0.2);
-      position: relative;
-    }
-    
-    .cyber-border::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
-      background: linear-gradient(45deg, var(--accent-cyan), var(--accent-blue), var(--accent-purple));
-      border-radius: inherit;
-      z-index: -1;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    
-    .cyber-border:hover::before {
-      opacity: 0.3;
-    }
-    
-    .glow-text {
-      color: var(--accent-cyan);
-      text-shadow: 
-        0 0 10px rgba(0, 255, 255, 0.8),
-        0 0 20px rgba(0, 255, 255, 0.5),
-        0 0 30px rgba(0, 255, 255, 0.3);
-      animation: glowPulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes glowPulse {
-      0%, 100% { 
-        text-shadow: 
-          0 0 10px rgba(0, 255, 255, 0.8),
-          0 0 20px rgba(0, 255, 255, 0.5),
-          0 0 30px rgba(0, 255, 255, 0.3);
-      }
-      50% { 
-        text-shadow: 
-          0 0 15px rgba(0, 255, 255, 1),
-          0 0 30px rgba(0, 255, 255, 0.8),
-          0 0 45px rgba(0, 255, 255, 0.5);
-      }
-    }
-    
-    .btn-cyber {
-      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
-      border: none;
-      color: #000;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      position: relative;
-      overflow: hidden;
-      transition: all 0.3s;
-      box-shadow: var(--glow-cyan);
-    }
-    
-    .btn-cyber::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-      transition: left 0.5s;
-    }
-    
-    .btn-cyber:hover::before {
-      left: 100%;
-    }
-    
-    .btn-cyber:hover {
-      transform: translateY(-2px);
-      box-shadow: 
-        0 0 30px rgba(0, 255, 255, 0.8),
-        0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    .chat-bubble {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: var(--glow-cyan);
-      z-index: 1000;
-      transition: all 0.3s;
-      animation: float 3s ease-in-out infinite;
-    }
-    
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-    
-    .chat-bubble:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 40px rgba(0, 255, 255, 1);
-    }
-    
-    .chat-window {
-      position: fixed;
-      bottom: 90px;
-      right: 20px;
-      width: 350px;
-      height: 500px;
-      background: var(--bg-card);
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      border-radius: 20px;
-      box-shadow: var(--glow-cyan);
-      display: none;
-      flex-direction: column;
-      z-index: 1000;
-      overflow: hidden;
-    }
-    
-    .chat-window.active {
-      display: flex;
-      animation: slideUp 0.3s ease-out;
-    }
-    
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+    // בדיקה רק אם התאריך הוא ב-24 השעות האחרונות וגם אם rowDate הוא אובייקט Date תקין
+    if (rowDate instanceof Date && rowDate > twentyFourHoursAgo) {
+      const rowPhone = row[phoneIndex];
+      const rowEmail = row[emailIndex];
+      
+      // בדיקת התאמה (השוואה ללא רווחים/מקפים)
+      const cleanPhone = (str) => str ? String(str).replace(/[\s\-\+\(\)]/g, '') : '';
+
+      if ((data.phone && cleanPhone(rowPhone) === cleanPhone(data.phone)) || 
+          (data.email && rowEmail.toLowerCase() === data.email.toLowerCase())) {
+        return true; // נמצא כפילות
       }
     }
-    
-    .popup-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      backdrop-filter: blur(10px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
+  }
+  return false;
+}
+
+
+/**
+ * מנקה נתונים - מסירה רווחים מיותרים מכל השדות
+ */
+function cleanData(data) {
+  const cleaned = {};
+  for (const key in data) {
+    if (typeof data[key] === 'string') {
+      cleaned[key] = data[key].trim();
+    } else {
+      cleaned[key] = data[key];
     }
-    
-    .popup-overlay.active {
-      display: flex;
-      animation: fadeIn 0.3s ease-out;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    .grid-bg {
-      background-image: 
-        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-      background-size: 50px 50px;
-      animation: gridMove 20s linear infinite;
-    }
-    
-    @keyframes gridMove {
-      0% { background-position: 0 0; }
-      100% { background-position: 50px 50px; }
-    }
-    
-    .counter-display {
-      background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 128, 255, 0.1) 100%);
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      padding: 1rem 2rem;
-      border-radius: 50px;
-      display: inline-block;
-      box-shadow: var(--glow-cyan);
-    }
-    
-    .stat-card {
-      background: var(--bg-card);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 2rem;
-      transition: all 0.3s;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    
-    .stat-card:hover {
-      border-color: var(--accent-cyan);
-      box-shadow: var(--glow-cyan);
-      transform: translateY(-5px);
-    }
-    
-    .stat-card:hover::before {
-      opacity: 1;
-    }
-    
-    input, textarea {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      color: var(--text-primary);
-      transition: all 0.3s;
-    }
-    
-    input:focus, textarea:focus {
-      outline: none;
-      border-color: var(--accent-cyan);
-      box-shadow: var(--glow-cyan);
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    input::placeholder, textarea::placeholder {
-      color: var(--text-secondary);
-    }
-    
-    .speed-indicator {
-      position: relative;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    
-    .speed-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
-      transition: width 0.3s ease;
-    }
-  </style>
+  }
+  return cleaned;
+}
+
+/**
+ * מאמתת שהנתונים תקינים ומכילים את כל שדות החובה
+ */
+function validateData(data) {
+  const errors = [];
   
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'cyber-dark': '#0a0a0a',
-            'cyber-gray': '#121212',
-            'cyber-card': '#1a1a1a',
-            'cyber-cyan': '#00ffff',
-            'cyber-blue': '#0080ff',
-            'cyber-purple': '#8000ff',
-          }
-        }
-      }
+  REQUIRED_FIELDS.forEach(field => {
+    if (!data[field] || data[field] === '') {
+      errors.push(`שדה ${field} הוא חובה`);
     }
-  </script>
+  });
   
-  <!-- Analytics - Async -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-  <script>
-    window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');
-  </script>
-</head>
-<body class="bg-cyber-dark text-white">
+  if (data.email && !isValidEmail(data.email)) {
+    errors.push('פורמט האימייל אינו תקין');
+  }
+  
+  if (data.phone && !isValidPhone(data.phone)) {
+    errors.push('פורמט הטלפון אינו תקין');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
+}
 
-  <!-- Language Selector -->
-  <nav class="fixed top-4 left-4 z-50 flex gap-2">
-    <button onclick="changeLang('he')" class="px-3 py-2 bg-cyber-card rounded-lg border border-cyber-cyan/30 hover:border-cyber-cyan transition" aria-label="עברית">🇮🇱</button>
-    <button onclick="changeLang('en')" class="px-3 py-2 bg-cyber-card rounded-lg border border-cyber-cyan/30 hover:border-cyber-cyan transition" aria-label="English">🇺🇸</button>
-    <button onclick="changeLang('ar')" class="px-3 py-2 bg-cyber-card rounded-lg border border-cyber-cyan/30 hover:border-cyber-cyan transition" aria-label="العربية">🇸🇦</button>
-    <button onclick="changeLang('ru')" class="px-3 py-2 bg-cyber-card rounded-lg border border-cyber-cyan/30 hover:border-cyber-cyan transition" aria-label="Русский">🇷🇺</button>
-  </nav>
+/**
+ * בודקת תקינות פורמט אימייל
+ */
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 
-  <!-- Hero Section -->
-  <section class="gradient-bg grid-bg min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-    <canvas id="networkCanvas" class="network-canvas"></canvas>
+/**
+ * בודקת תקינות פורמט טלפון
+ */
+function isValidPhone(phone) {
+  // מאפשר ספרות, רווחים, מקפים, +, () ואורך מינימלי
+  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+  return phoneRegex.test(phone) && phone.replace(/[\s\-\+\(\)]/g, '').length >= 7;
+}
+
+// ====================================
+// פונקציות שמירה והתראה
+// ====================================
+
+/**
+ * שומרת ליד תקין בגיליון הראשי
+ * @param {Object} data - נתוני הליד
+ * @return {number} מספר השורה שנוספה
+ */
+function saveLeadToSheet(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
+  
+  // אם אין כותרות, בונה כותרות לפי המפה
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(Object.keys(COLUMNS_MAP));
+  }
+  
+  const rowData = buildRowData(data);
+  sheet.appendRow(rowData);
+  
+  return sheet.getLastRow();
+}
+
+/**
+ * בונה מערך נתונים לשורה חדשה לפי COLUMNS_MAP
+ */
+function buildRowData(data) {
+  const rowData = [];
+  for (const columnName in COLUMNS_MAP) {
+    const valueFunction = COLUMNS_MAP[columnName];
+    rowData.push(valueFunction(data));
+  }
+  return rowData;
+}
+
+/**
+ * שומרת ליד פגום בגיליון Failed Leads
+ */
+function saveFailedLead(data, errors) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let failedSheet = ss.getSheetByName('Failed Leads');
     
-    <div class="container mx-auto text-center relative z-10 py-20">
-      <!-- Social Proof Counter -->
-      <div class="mb-8">
-        <div class="counter-display">
-          <p class="text-lg font-medium">
-            הצטרפו ל-<span id="counter" class="glow-text text-3xl font-bold font-['Orbitron']">100</span>+ עסקים שכבר שדרגו
-          </p>
-        </div>
-      </div>
+    // יצירת גיליון כשלונות אם אינו קיים
+    if (!failedSheet) {
+      failedSheet = ss.insertSheet('Failed Leads');
+      failedSheet.appendRow([
+        'תאריך שרת',
+        'שגיאות',
+        ...Object.keys(COLUMNS_MAP).filter(key => key !== 'תאריך שרת').slice(0, 5), // נתונים מרכזיים
+        'נתונים מלאים (JSON)'
+      ]);
       
-      <!-- Main H1 -->
-      <h1 class="text-5xl md:text-7xl font-bold mb-6 font-['Orbitron']">
-        הפתרון המלא ל<span class="glow-text">סיבים אופטיים</span> לעסקים
-      </h1>
-      
-      <p class="text-xl md:text-2xl mb-8 text-gray-300">
-        תשתית <span class="text-cyber-cyan">יציבה</span>, <span class="text-cyber-cyan">מהירה</span> ו<span class="text-cyber-cyan">אמינה</span> לעסקים קטנים (SMB)
-      </p>
-      
-      <button onclick="scrollToForm()" class="btn-cyber px-10 py-5 rounded-full text-xl font-bold">
-        קבל הצעת מחיר עכשיו ⚡
-      </button>
-      
-      <!-- Speed Stats -->
-      <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-        <div class="stat-card text-center">
-          <div class="text-5xl glow-text font-bold font-['Orbitron']">1000</div>
-          <div class="text-sm text-gray-400 mt-2">Mbps מהירות מקסימלית</div>
-        </div>
-        <div class="stat-card text-center">
-          <div class="text-5xl glow-text font-bold font-['Orbitron']">99.9%</div>
-          <div class="text-sm text-gray-400 mt-2">זמינות מובטחת</div>
-        </div>
-        <div class="stat-card text-center">
-          <div class="text-5xl glow-text font-bold font-['Orbitron']">24/7</div>
-          <div class="text-sm text-gray-400 mt-2">תמיכה טכנית</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Speed Comparison -->
-  <section class="py-20 px-4 bg-cyber-gray relative">
-    <div class="absolute inset-0 grid-bg opacity-20"></div>
-    <div class="container mx-auto relative z-10">
-      <h2 class="text-4xl md:text-5xl font-bold text-center mb-16 font-['Orbitron']">
-        השוואת <span class="glow-text">מהירות</span>: לפני ואחרי
-      </h2>
-      
-      <div class="max-w-3xl mx-auto">
-        <!-- Custom Styled Range Slider -->
-        <div class="mb-12">
-          <input type="range" id="speedSlider" min="0" max="100" value="50" 
-                 class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider-cyber">
-        </div>
-        
-        <div class="grid md:grid-cols-2 gap-12">
-          <!-- Before -->
-          <div class="stat-card text-center">
-            <div class="text-6xl mb-6">🐌</div>
-            <h3 class="font-bold text-2xl mb-4 text-red-400">לפני השדרוג</h3>
-            <div class="text-6xl font-bold text-red-400 mb-4 font-['Orbitron']">
-              <span id="beforeSpeed">100</span>
-              <span class="text-2xl">Mbps</span>
-            </div>
-            <div class="speed-indicator">
-              <div class="speed-fill bg-red-500" style="width: 10%"></div>
-            </div>
-            <p class="text-sm text-gray-400 mt-4">אינטרנט רגיל - איטי ולא יציב</p>
-          </div>
-          
-          <!-- After -->
-          <div class="stat-card text-center border-cyber-cyan">
-            <div class="text-6xl mb-6">⚡</div>
-            <h3 class="font-bold text-2xl mb-4 text-cyber-cyan">אחרי השדרוג</h3>
-            <div class="text-6xl font-bold glow-text mb-4 font-['Orbitron']">
-              <span id="afterSpeed">1000</span>
-              <span class="text-2xl">Mbps</span>
-            </div>
-            <div class="speed-indicator">
-              <div class="speed-fill" style="width: 100%"></div>
-            </div>
-            <p class="text-sm text-gray-400 mt-4">סיבים אופטיים - מהיר פי 10!</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ROI Calculator -->
-  <section class="py-20 px-4 bg-cyber-dark relative overflow-hidden">
-    <div class="absolute inset-0">
-      <div class="absolute top-0 left-1/4 w-96 h-96 bg-cyber-cyan/10 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyber-blue/10 rounded-full blur-3xl"></div>
-    </div>
+      const headerRange = failedSheet.getRange(1, 1, 1, 8);
+      headerRange.setFontWeight('bold').setBackground('#f44336').setForeground('white');
+    }
     
-    <div class="container mx-auto max-w-4xl relative z-10">
-      <h2 class="text-4xl md:text-5xl font-bold text-center mb-4 font-['Orbitron']">
-        <span class="glow-text">מחשבון ROI</span> לסיבים אופטיים
-      </h2>
-      <p class="text-xl text-center mb-12 text-gray-400">
-        כמה כסף העסק שלך <span class="text-red-400">מפסיד</span> מ-Latency?
-      </p>
-      
-      <div class="stat-card cyber-border p-8 md:p-12">
-        <label class="block mb-6">
-          <span class="text-lg font-semibold mb-3 block">מספר עובדים בעסק:</span>
-          <input type="number" id="employees" value="10" min="1" max="1000" 
-                 class="w-full px-6 py-4 rounded-xl text-xl font-['Orbitron']">
-        </label>
-        
-        <div class="mt-10 p-8 bg-gradient-to-br from-red-900/30 to-orange-900/30 rounded-2xl border-2 border-red-500/50 relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent animate-pulse"></div>
-          <p class="text-center text-gray-300 mb-3 text-lg relative z-10">
-            💸 אתם מפסידים משוער של:
-          </p>
-          <p class="text-center text-6xl md:text-7xl font-bold text-red-400 mb-3 font-['Orbitron'] relative z-10" style="text-shadow: 0 0 30px rgba(239, 68, 68, 0.8);">
-            ₪<span id="savings">12,000</span>
-          </p>
-          <p class="text-center text-gray-400 relative z-10">
-            בשנה בגלל Downtime ואינטרנט איטי
-          </p>
-        </div>
-        
-        <div class="mt-8 text-center">
-          <button onclick="scrollToForm()" class="btn-cyber px-8 py-4 rounded-full text-lg">
-            חסכו עכשיו! ⚡
-          </button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Case Studies -->
-  <section class="py-20 px-4 bg-cyber-gray relative">
-    <div class="absolute inset-0 grid-bg opacity-10"></div>
-    <div class="container mx-auto relative z-10">
-      <h2 class="text-4xl md:text-5xl font-bold text-center mb-4 font-['Orbitron']">
-        מקרי <span class="glow-text">מבחן</span>
-      </h2>
-      <p class="text-center text-gray-400 mb-16 text-lg">
-        כך שדרוג סיבים אופטיים שיפר ביצועים ב-SMB
-      </p>
-      
-      <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        <!-- Case 1 -->
-        <article class="stat-card group">
-          <div class="text-5xl mb-6">🏢</div>
-          <h3 class="font-bold text-xl mb-3">משרד הייטק - תל אביב</h3>
-          <p class="text-gray-400 mb-6">50 עובדים</p>
-          <div class="flex items-center justify-center gap-3 text-cyber-cyan font-bold text-2xl">
-            <span class="glow-text">↑ 85%</span>
-          </div>
-          <p class="text-sm text-gray-500 mt-2">שיפור במהירות</p>
-        </article>
-        
-        <!-- Case 2 -->
-        <article class="stat-card group">
-          <div class="text-5xl mb-6">🏥</div>
-          <h3 class="font-bold text-xl mb-3">מרפאה פרטית - חיפה</h3>
-          <p class="text-gray-400 mb-6">15 עובדים</p>
-          <div class="flex items-center justify-center gap-3 text-cyber-cyan font-bold text-2xl">
-            <span class="glow-text">↓ 90%</span>
-          </div>
-          <p class="text-sm text-gray-500 mt-2">פחות תקלות</p>
-        </article>
-        
-        <!-- Case 3 -->
-        <article class="stat-card group">
-          <div class="text-5xl mb-6">🎨</div>
-          <h3 class="font-bold text-xl mb-3">סטודיו עיצוב - ירושלים</h3>
-          <p class="text-gray-400 mb-6">8 עובדים</p>
-          <div class="flex items-center justify-center gap-3 text-cyber-cyan font-bold text-2xl">
-            <span class="glow-text">↑ 70%</span>
-          </div>
-          <p class="text-sm text-gray-500 mt-2">פרודוקטיביות</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- Lead Form -->
-  <section id="leadForm" class="py-20 px-4 bg-cyber-dark relative overflow-hidden">
-    <div class="absolute inset-0">
-      <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-r from-cyber-cyan/5 via-cyber-blue/5 to-cyber-purple/5 rounded-full blur-3xl"></div>
-    </div>
+    // הוספת הליד הפגום
+    failedSheet.appendRow([
+      new Date(),
+      errors.join('; '),
+      data.name || '',
+      data.phone || '',
+      data.email || '',
+      data.message || '',
+      data.source || '',
+      JSON.stringify(data) // שומרים את כל המידע המקורי
+    ]);
     
-    <div class="container mx-auto max-w-2xl relative z-10">
-      <h2 class="text-4xl md:text-5xl font-bold text-center mb-4 font-['Orbitron']">
-        קבלו <span class="glow-text">הצעת מחיר</span>
-      </h2>
-      <p class="text-center text-gray-400 mb-12 text-lg">
-        מותאמת אישית לעסק שלכם
-      </p>
-      
-      <form id="mainForm" class="stat-card cyber-border p-8 md:p-12">
-        <div class="space-y-5">
-          <input type="text" id="name" placeholder="שם מלא *" required 
-                 class="w-full px-6 py-4 rounded-xl text-lg">
-          <input type="email" id="email" placeholder="אימייל *" required 
-                 class="w-full px-6 py-4 rounded-xl text-lg">
-          <input type="tel" id="phone" placeholder="טלפון *" required 
-                 class="w-full px-6 py-4 rounded-xl text-lg">
-          <input type="text" id="company" placeholder="שם החברה *" required 
-                 class="w-full px-6 py-4 rounded-xl text-lg font-bold border-2 border-cyber-cyan/50">
-        </div>
+  } catch (error) {
+    Logger.log('שגיאה בשמירת ליד פגום: ' + error.toString());
+  }
+}
+
+/**
+ * שולחת התראת אימייל מפורטת על ליד חדש עם לינק ישיר
+ */
+function sendEmailNotification(data, rowNumber) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
+    
+    const spreadsheetUrl = ss.getUrl();
+    const sheetId = sheet.getSheetId();
+    const directLink = `${spreadsheetUrl}#gid=${sheetId}&range=A${rowNumber}`;
+    
+    const emailBody = `
+      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;">
+        <h2 style="color: #2c5aa0; border-bottom: 2px solid #ff9800; padding-bottom: 10px;">🎯 ליד חדש התקבל - FiberPro!</h2>
         
-        <button type="submit" class="w-full mt-8 btn-cyber px-8 py-5 rounded-full text-xl">
-          שלח בקשה ⚡
-        </button>
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 30%;">שם מלא:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.name}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">טלפון:</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="tel:${data.phone}" style="color: #0d47a1;">${data.phone}</a></td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">אימייל:</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="mailto:${data.email}" style="color: #0d47a1;">${data.email}</a></td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">הודעה:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.message || 'לא צורפה הודעה'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">מקור:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.source || 'אתר'}</td></tr>
+        </table>
         
-        <p class="text-center text-sm text-gray-500 mt-6">
-          🔒 המידע שלכם מאובטח ומוצפן
+        <p style="margin-top: 20px; font-size: 14px; color: #555;">
+            זמן שליחה (לקוח): ${data.clientTimestamp ? Utilities.formatDate(new Date(data.clientTimestamp), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss') : 'חסר'}
         </p>
-      </form>
-    </div>
-  </section>
 
-  <!-- Chat Bubble -->
-  <button class="chat-bubble" onclick="toggleChat()">
-    <svg class="w-8 h-8 text-cyber-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${directLink}" 
+              style="background-color: #ff9800; 
+                      color: #0f172a; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      border-radius: 5px;
+                      font-weight: bold;
+                      display: inline-block;">
+            
+            ✅ טפל בליד מיד (שורה ${rowNumber})
+          </a>
+        </div>
+        
+        <p style="color: #999; font-size: 10px; margin-top: 30px; text-align: center;">
+          מערכת CRM אוטומטית FiberPro
+        </p>
+      </div>
+    `;
+    
+    MailApp.sendEmail({
+      to: EMAIL_CONFIG.recipient,
+      subject: EMAIL_CONFIG.subject,
+      htmlBody: emailBody
+    });
+    
+  } catch (error) {
+    Logger.log('שגיאה בשליחת אימייל: ' + error.toString());
+  }
+}
+
+// ====================================
+// פונקציות לתחזוקה ובדיקה
+// ====================================
+
+/**
+ * פונקציה לבדיקה ידנית של המערכת (הרצה מתוך Apps Script Editor)
+ */
+function testSystem() {
+  const testData = {
+    name: 'ישראל ישראלי',
+    phone: '050-1234567',
+    email: 'test@example.com',
+    message: 'זוהי הודעת בדיקה',
+    source: 'טסט ידני',
+    clientTimestamp: new Date().toISOString(), // מדמה זמן קליינט
+    userAgent: 'Manual/ScriptTester/1.0'
+  };
+  
+  const e = {
+    postData: {
+      contents: JSON.stringify(testData)
+    }
+  };
+  
+  const result = doPost(e);
+  Logger.log('תוצאת הבדיקה: ' + result.getContent());
+}
+
+/**
+ * פונקציה ליצירת גיליון Failed Leads באופן ידני, כולל כותרות.
+ */
+function createFailedLeadsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let failedSheet = ss.getSheetByName('Failed Leads');
+  
+  if (!failedSheet) {
+    failedSheet = ss.insertSheet('Failed Leads');
+    failedSheet.appendRow([
+      'תאריך שרת',
+      'שגיאות',
+      'שם מלא',
+      'טלפון',
+      'אימייל',
+      'הודעה',
+      'מקור',
+      'נתונים מלאים (JSON)'
+    ]);
+    
+    const headerRange = failedSheet.getRange(1, 1, 1, 8);
+    headerRange.setFontWeight('bold').setBackground('#f44336').setForeground('white');
+    
+    Logger.log('גיליון Failed Leads נוצר בהצלחה');
+  } else {
+    Logger.log('גיליון Failed Leads כבר קיים');
+  }
+}
