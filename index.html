@@ -1,393 +1,634 @@
-/**
- * ====================================
- * CRM AUTOMATION - ENTERPRISE LEVEL V2.0
- * ====================================
- * * מערכת CRM אוטומטית עם אימות נתונים, טיפול בשגיאות ולינקים ישירים לשורות
- * * תכונות עיקריות (שדרוגים):
- * 1. מנגנון מניעת כפילויות: לא שומר ליד עם טלפון/אימייל זהים ב-24 שעות האחרונות.
- * 2. לכידת נתונים טכניים: שמירת User Agent וזמן שליחה מצד הלקוח.
- * 3. טיפול משופר בשגיאות: שמירת לידים פגומים בגיליון נפרד.
- * 4. קונפיגורציה מרכזית: כל ההגדרות במקום אחד.
- */
-
-// ====================================
-// הגדרות קבועים
-// ====================================
-
-/**
- * מפת עמודות - מגדירה את מבנה הגיליון והתאמה לנתונים מהטופס
- * שים לב: הפונקציות כאן מושכות נתונים מה-data שנשלח מה-HTML
- */
-const COLUMNS_MAP = {
-  'תאריך שרת': (data) => new Date(), // מתי השרת (Apps Script) קיבל את הנתון
-  'שם מלא': (data) => data.name,
-  'טלפון': (data) => data.phone,
-  'אימייל': (data) => data.email,
-  'הודעה': (data) => data.message || '',
-  'מקור': (data) => data.source || 'אתר',
-  'סטטוס': (data) => 'חדש',
-  'זמן שליחה (לקוח)': (data) => data.clientTimestamp ? new Date(data.clientTimestamp) : 'חסר', // נתון חדש מהקליינט
-  'User Agent': (data) => data.userAgent || 'חסר', // נתון חדש: מידע על הדפדפן/מכשיר
-};
-
-/**
- * שדות חובה שחייבים להיות קיימים ולא ריקים
- */
-const REQUIRED_FIELDS = ['name', 'phone', 'email'];
-
-/**
- * הגדרות אימייל התראה
- */
-const EMAIL_CONFIG = {
-  recipient: 'your-email@example.com', // ⚠️ חובה לעדכן לאימייל שלך
-  subject: '🎯 ליד חדש התקבל (FiberPro)!'
-};
-
-// ====================================
-// פונקציה ראשית - קבלת נתונים מהאתר
-// ====================================
-
-/**
- * מטפלת בבקשות POST מהאתר.
- * @param {Object} e - אובייקט הבקשה מ-Google Apps Script.
- * @return {Object} תגובה JSON.
- */
-function doPost(e) {
-  const output = (status, message, details = {}) => {
-    const response = { status, message, ...details };
-    return ContentService
-      .createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
-  };
-
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const cleanedData = cleanData(data);
-    const validation = validateData(cleanedData);
-
-    // 1. בדיקת אימות בסיסית
-    if (!validation.isValid) {
-      saveFailedLead(cleanedData, validation.errors);
-      return output('error', 'נתונים חסרים או לא תקינים', { errors: validation.errors });
-    }
-
-    // 2. בדיקת כפילויות (התוספת המיוחדת!)
-    if (isDuplicateLead(cleanedData)) {
-      Logger.log(`ליד פוטנציאלי כפול נחסם: ${cleanedData.phone} / ${cleanedData.email}`);
-      // מחזירים הצלחה כדי לא לתת לבוטים אינדיקציה לשגיאה
-      return output('success', 'הליד כבר נשמר במערכת לאחרונה');
-    }
-
-    // 3. שמירת הליד התקין
-    const rowNumber = saveLeadToSheet(cleanedData);
-
-    // 4. שליחת התראה באימייל
-    sendEmailNotification(cleanedData, rowNumber);
-
-    return output('success', 'הליד נשמר בהצלחה', { rowNumber: rowNumber });
-
-  } catch (error) {
-    Logger.log('שגיאה קריטית ב-doPost: ' + error.toString());
-    return output('error', 'שגיאת שרת פנימית: ' + error.message);
-  }
-}
-
-// ====================================
-// פונקציות עזר מרכזיות
-// ====================================
-
-/**
- * בודקת אם קיים ליד זהה (טלפון או אימייל זהים) ב-24 השעות האחרונות
- * * @param {Object} data - נתוני הליד הנשלחים
- * @return {boolean} true אם נמצאה כפילות, false אחרת
- */
-function isDuplicateLead(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
-  const lastRow = sheet.getLastRow();
-  
-  if (lastRow < 2) return false;
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const phoneIndex = headers.indexOf('טלפון');
-  const emailIndex = headers.indexOf('אימייל');
-  const dateIndex = headers.indexOf('תאריך שרת');
-  
-  if (phoneIndex === -1 || emailIndex === -1 || dateIndex === -1) {
-    Logger.log('אחת מכותרות העמודות (טלפון, אימייל, תאריך שרת) חסרה. לא ניתן לבצע בדיקת כפילויות.');
-    return false; // לא מבצעים בדיקה אם הכותרות חסרות
-  }
-
-  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const twentyFourHoursAgo = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
-  
-  for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    const rowDate = row[dateIndex];
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שדרוג לסיבים אופטיים | FiberPro - 10 מ"ב ב-1,452 ש"ח</title>
+    <meta name="description" content="התחברות לסיבים אופטיים לביתך. מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח, 24/7 תמיכה טכנית, הקמה תוך 2-4 שעות. הצטרף עכשיו!"/>
     
-    // בדיקה רק אם התאריך הוא ב-24 השעות האחרונות וגם אם rowDate הוא אובייקט Date תקין
-    if (rowDate instanceof Date && rowDate > twentyFourHoursAgo) {
-      const rowPhone = row[phoneIndex];
-      const rowEmail = row[emailIndex];
-      
-      // בדיקת התאמה (השוואה ללא רווחים/מקפים)
-      const cleanPhone = (str) => str ? String(str).replace(/[\s\-\+\(\)]/g, '') : '';
-
-      if ((data.phone && cleanPhone(rowPhone) === cleanPhone(data.phone)) || 
-          (data.email && rowEmail.toLowerCase() === data.email.toLowerCase())) {
-        return true; // נמצא כפילות
-      }
-    }
-  }
-  return false;
-}
-
-
-/**
- * מנקה נתונים - מסירה רווחים מיותרים מכל השדות
- */
-function cleanData(data) {
-  const cleaned = {};
-  for (const key in data) {
-    if (typeof data[key] === 'string') {
-      cleaned[key] = data[key].trim();
-    } else {
-      cleaned[key] = data[key];
-    }
-  }
-  return cleaned;
-}
-
-/**
- * מאמתת שהנתונים תקינים ומכילים את כל שדות החובה
- */
-function validateData(data) {
-  const errors = [];
-  
-  REQUIRED_FIELDS.forEach(field => {
-    if (!data[field] || data[field] === '') {
-      errors.push(`שדה ${field} הוא חובה`);
-    }
-  });
-  
-  if (data.email && !isValidEmail(data.email)) {
-    errors.push('פורמט האימייל אינו תקין');
-  }
-  
-  if (data.phone && !isValidPhone(data.phone)) {
-    errors.push('פורמט הטלפון אינו תקין');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors: errors
-  };
-}
-
-/**
- * בודקת תקינות פורמט אימייל
- */
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
- * בודקת תקינות פורמט טלפון
- */
-function isValidPhone(phone) {
-  // מאפשר ספרות, רווחים, מקפים, +, () ואורך מינימלי
-  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-  return phoneRegex.test(phone) && phone.replace(/[\s\-\+\(\)]/g, '').length >= 7;
-}
-
-// ====================================
-// פונקציות שמירה והתראה
-// ====================================
-
-/**
- * שומרת ליד תקין בגיליון הראשי
- * @param {Object} data - נתוני הליד
- * @return {number} מספר השורה שנוספה
- */
-function saveLeadToSheet(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
-  
-  // אם אין כותרות, בונה כותרות לפי המפה
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(Object.keys(COLUMNS_MAP));
-  }
-  
-  const rowData = buildRowData(data);
-  sheet.appendRow(rowData);
-  
-  return sheet.getLastRow();
-}
-
-/**
- * בונה מערך נתונים לשורה חדשה לפי COLUMNS_MAP
- */
-function buildRowData(data) {
-  const rowData = [];
-  for (const columnName in COLUMNS_MAP) {
-    const valueFunction = COLUMNS_MAP[columnName];
-    rowData.push(valueFunction(data));
-  }
-  return rowData;
-}
-
-/**
- * שומרת ליד פגום בגיליון Failed Leads
- */
-function saveFailedLead(data, errors) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let failedSheet = ss.getSheetByName('Failed Leads');
+    <!-- Open Graph Tags (לשיתוף ברשתות חברתיות) -->
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="התחברות לסיבים אופטיים | FiberPro"/>
+    <meta property="og:description" content="מבצע מטורף: 10 מ"ב ב-1,452 ש"ח + הקמה מהירה."/>
+    <meta property="og:image" content="https://yoursite.com/og-image.jpg"/>
+    <meta property="og:url" content="https://yoursite.com/"/>
     
-    // יצירת גיליון כשלונות אם אינו קיים
-    if (!failedSheet) {
-      failedSheet = ss.insertSheet('Failed Leads');
-      failedSheet.appendRow([
-        'תאריך שרת',
-        'שגיאות',
-        ...Object.keys(COLUMNS_MAP).filter(key => key !== 'תאריך שרת').slice(0, 5), // נתונים מרכזיים
-        'נתונים מלאים (JSON)'
-      ]);
-      
-      const headerRange = failedSheet.getRange(1, 1, 1, 8);
-      headerRange.setFontWeight('bold').setBackground('#f44336').setForeground('white');
-    }
+    <!-- קישור לפונטים ו-CSS קריטי -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
-    // הוספת הליד הפגום
-    failedSheet.appendRow([
-      new Date(),
-      errors.join('; '),
-      data.name || '',
-      data.phone || '',
-      data.email || '',
-      data.message || '',
-      data.source || '',
-      JSON.stringify(data) // שומרים את כל המידע המקורי
-    ]);
-    
-  } catch (error) {
-    Logger.log('שגיאה בשמירת ליד פגום: ' + error.toString());
-  }
-}
-
-/**
- * שולחת התראת אימייל מפורטת על ליד חדש עם לינק ישיר
- */
-function sendEmailNotification(data, rowNumber) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Leads') || ss.getSheets()[0];
-    
-    const spreadsheetUrl = ss.getUrl();
-    const sheetId = sheet.getSheetId();
-    const directLink = `${spreadsheetUrl}#gid=${sheetId}&range=A${rowNumber}`;
-    
-    const emailBody = `
-      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;">
-        <h2 style="color: #2c5aa0; border-bottom: 2px solid #ff9800; padding-bottom: 10px;">🎯 ליד חדש התקבל - FiberPro!</h2>
+    <!-- Critical CSS - Dark Tech Theme -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
         
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 30%;">שם מלא:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.name}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">טלפון:</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="tel:${data.phone}" style="color: #0d47a1;">${data.phone}</a></td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">אימייל:</td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="mailto:${data.email}" style="color: #0d47a1;">${data.email}</a></td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">הודעה:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.message || 'לא צורפה הודעה'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">מקור:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${data.source || 'אתר'}</td></tr>
-        </table>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #121212;
+            --bg-card: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent-cyan: #00ffff;
+            --accent-blue: #00aaff;
+            --accent-purple: #8000ff;
+            --glow-cyan: 0 0 20px rgba(0, 255, 255, 0.5);
+            --glow-blue: 0 0 20px rgba(0, 128, 255, 0.5);
+        }
         
-        <p style="margin-top: 20px; font-size: 14px; color: #555;">
-            זמן שליחה (לקוח): ${data.clientTimestamp ? Utilities.formatDate(new Date(data.clientTimestamp), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss') : 'חסר'}
-        </p>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-        <div style="text-align: center; margin-top: 30px;">
-          <a href="${directLink}" 
-              style="background-color: #ff9800; 
-                      color: #0f172a; 
-                      padding: 12px 24px; 
-                      text-decoration: none; 
-                      border-radius: 5px;
-                      font-weight: bold;
-                      display: inline-block;">
-            
-            ✅ טפל בליד מיד (שורה ${rowNumber})
-          </a>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 50%, var(--bg-primary) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* אפקט הברקה דק סביב אלמנטים */
+        .cyber-border {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                inset 0 0 20px rgba(0, 255, 255, 0.05),
+                0 0 20px rgba(0, 255, 255, 0.05);
+            position: relative;
+            border-radius: 8px;
+        }
+
+        /* אפקט זוהר חכם באמצעות Before */
+        .cyber-border::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-blue), var(--accent-purple));
+            border-radius: 10px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .cyber-border:hover::before {
+            opacity: 0.3;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 8px var(--accent-cyan);
+            color: var(--accent-cyan);
+            transition: text-shadow 0.3s;
+        }
+        
+        .glow-text-blue {
+            text-shadow: 0 0 8px var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* כפתורים סייבריים */
+        .btn-cyber {
+            padding: 14px 30px;
+            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-blue));
+            color: var(--bg-primary);
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .btn-cyber:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
+        }
+
+        /* אנימציית גבול מודגשת */
+        @keyframes bgPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        /* רשת רקע */
+        .network-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.08; /* שמרני יותר */
+        }
+        
+        /* Layout */
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        section {
+            padding: 80px 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Hero Section */
+        #hero {
+            padding-top: 100px;
+            padding-bottom: 100px;
+            text-align: center;
+        }
+        
+        #hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        
+        #hero p {
+            font-size: clamp(1.1rem, 2vw, 1.5rem);
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .cta-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* Form Card */
+        .form-card {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 450px;
+            margin: 40px auto 0;
+            box-shadow: var(--glow-blue);
+            animation: bgPulse 2s infinite alternate;
+        }
+
+        .form-card h3 {
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+            font-size: 1.8rem;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-radius: 4px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 5px var(--accent-cyan);
+        }
+
+        /* Features Section */
+        #features {
+            background: var(--bg-secondary);
+            text-align: center;
+        }
+        
+        #features h2 {
+            margin-bottom: 60px;
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .feature-item {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 8px;
+            text-align: right;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.1);
+        }
+
+        .feature-item h3 {
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        
+        .feature-item p {
+            color: var(--text-secondary);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--accent-blue);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            padding: 30px 0;
+            text-align: center;
+            margin-top: auto; /* דוחף לפוטר לתחתית */
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        footer a:hover {
+            color: var(--text-primary);
+        }
+        
+        /* הודעת סטטוס גלובלית */
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s, transform 0.5s;
+            transform: translateY(-20px);
+            border-right: 4px solid var(--accent-cyan);
+        }
+        
+        .status-message.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas for subtle background network animation (using three.js) -->
+    <canvas id="network-canvas" class="network-canvas"></canvas>
+
+    <header class="container">
+        <h3 class="glow-text" style="font-size: 1.5rem; padding: 20px 0;">FiberPro</h3>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero" class="gradient-bg">
+            <div class="container">
+                <h1 class="glow-text-blue">מהפכת הסיבים האופטיים כבר כאן.<br>התחברות תוך <span class="glow-text">4 שעות!</span></h1>
+                <p>חווית גלישה אולטימטיבית, מחיר מיוחד למצטרפים חדשים, ותמיכה טכנית 24/7. המבצע: 10 מ"ב ב-1,452 ש"ח (לשנה).</p>
+
+                <!-- Form Card -->
+                <div class="form-card cyber-border">
+                    <h3 class="glow-text">השאירו פרטים ונחזור אליכם מיד.</h3>
+                    <form id="lead-form">
+                        <input type="hidden" name="clientTimestamp" id="clientTimestamp">
+                        <input type="hidden" name="userAgent" id="userAgent">
+                        <input type="hidden" name="source" value="Landing Page">
+
+                        <div class="form-group">
+                            <label for="name">שם מלא:</label>
+                            <input type="text" id="name" name="name" required placeholder="שם מלא">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">טלפון:</label>
+                            <input type="tel" id="phone" name="phone" required placeholder="05X-XXXXXXX">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">אימייל:</label>
+                            <input type="email" id="email" name="email" required placeholder="example@fiberpro.co.il">
+                        </div>
+                        <div class="form-group">
+                            <label for="message">הודעה (אופציונלי):</label>
+                            <textarea id="message" name="message" rows="3" placeholder="כמה מהירות אתם צריכים?"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn-cyber">הצטרפו למבצע עכשיו!</button>
+                    </form>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 15px;">*אין התחייבות. הנציג שלנו יחזור אליכם עם כל הפרטים.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features">
+            <div class="container">
+                <h2 class="glow-text">למה לבחור ב-FiberPro?</h2>
+                <div class="feature-grid">
+                    <div class="feature-item cyber-border">
+                        <i class="feature-icon">⚡</i>
+                        <h3>מהירות שיא (עד 1000 מ"ב)</h3>
+                        <p>גלישה, סטרימינג והורדות במהירויות שלא הכרתם. מוכנים ל-8K ללא גמגום?</p>
+                    </div>
+                    <div class="feature-item cyber-border">
+                        <i class="feature-icon">🛠️</i>
+                        <h3>התקנה מהירה</h3>
+                        <p>הקמה ופריסת הסיבים לביתך תוך 2-4 שעות מרגע ההזמנה. אנחנו עובדים מהר!</p>
+                    </div>
+                    <div class="feature-item cyber-border">
+                        <i class="feature-icon">🛡️</i>
+                        <h3>תמיכה 24/7</h3>
+                        <p>הצוות הטכני שלנו זמין עבורך מסביב לשעון, בכל יום בשבוע. תמיד כאן בשבילך.</p>
+                    </div>
+                    <div class="feature-item cyber-border">
+                        <i class="feature-icon">💰</i>
+                        <h3>מחיר מנצח לשנה</h3>
+                        <p>חבילת הפרימיום שלנו במחיר מבצע בלעדי למצטרפים חדשים. הסיבים הכי משתלמים בשוק.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 FiberPro. כל הזכויות שמורות. | <a href="#">מדיניות פרטיות</a></p>
         </div>
+    </footer>
+    
+    <!-- הודעת סטטוס (מחליפה את ה-alert) -->
+    <div id="status-message" class="status-message" dir="rtl"></div>
+    
+    <!-- JavaScript Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ====================================
+        // JavaScript Logic: Form Submission & UI
+        // ====================================
+
+        const form = document.getElementById('lead-form');
+        const statusMessage = document.getElementById('status-message');
+        const clientTimestamp = document.getElementById('clientTimestamp');
+        const userAgent = document.getElementById('userAgent');
         
-        <p style="color: #999; font-size: 10px; margin-top: 30px; text-align: center;">
-          מערכת CRM אוטומטית FiberPro
-        </p>
-      </div>
-    `;
-    
-    MailApp.sendEmail({
-      to: EMAIL_CONFIG.recipient,
-      subject: EMAIL_CONFIG.subject,
-      htmlBody: emailBody
-    });
-    
-  } catch (error) {
-    Logger.log('שגיאה בשליחת אימייל: ' + error.toString());
-  }
-}
+        // ⚠️ חובה לעדכן לכתובת ה-Apps Script URL שלך!
+        // הכתובת צריכה להסתיים ב-/exec
+        const APPS_SCRIPT_URL = "DEPLOYMENT_URL_HERE"; 
 
-// ====================================
-// פונקציות לתחזוקה ובדיקה
-// ====================================
+        /**
+         * מציג הודעת סטטוס גלובלית בפינה
+         * @param {string} message - ההודעה להצגה
+         * @param {string} type - סוג ההודעה ('success' או 'error')
+         */
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message show';
+            
+            // שינוי צבע הגבול לפי סוג ההודעה
+            statusMessage.style.borderRightColor = type === 'success' ? 'var(--accent-cyan)' : '#f44336';
+            
+            setTimeout(() => {
+                statusMessage.classList.remove('show');
+            }, 5000);
+        }
 
-/**
- * פונקציה לבדיקה ידנית של המערכת (הרצה מתוך Apps Script Editor)
- */
-function testSystem() {
-  const testData = {
-    name: 'ישראל ישראלי',
-    phone: '050-1234567',
-    email: 'test@example.com',
-    message: 'זוהי הודעת בדיקה',
-    source: 'טסט ידני',
-    clientTimestamp: new Date().toISOString(), // מדמה זמן קליינט
-    userAgent: 'Manual/ScriptTester/1.0'
-  };
-  
-  const e = {
-    postData: {
-      contents: JSON.stringify(testData)
-    }
-  };
-  
-  const result = doPost(e);
-  Logger.log('תוצאת הבדיקה: ' + result.getContent());
-}
+        /**
+         * מטפל בשליחת הטופס
+         */
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const submitButton = form.querySelector('button[type="submit"]');
+            
+            // מילוי שדות אוטומטיים
+            clientTimestamp.value = new Date().toISOString();
+            userAgent.value = navigator.userAgent;
+            
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
 
-/**
- * פונקציה ליצירת גיליון Failed Leads באופן ידני, כולל כותרות.
- */
-function createFailedLeadsSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let failedSheet = ss.getSheetByName('Failed Leads');
-  
-  if (!failedSheet) {
-    failedSheet = ss.insertSheet('Failed Leads');
-    failedSheet.appendRow([
-      'תאריך שרת',
-      'שגיאות',
-      'שם מלא',
-      'טלפון',
-      'אימייל',
-      'הודעה',
-      'מקור',
-      'נתונים מלאים (JSON)'
-    ]);
-    
-    const headerRange = failedSheet.getRange(1, 1, 1, 8);
-    headerRange.setFontWeight('bold').setBackground('#f44336').setForeground('white');
-    
-    Logger.log('גיליון Failed Leads נוצר בהצלחה');
-  } else {
-    Logger.log('גיליון Failed Leads כבר קיים');
-  }
-}
+            // נעילת כפתור ומחוון טעינה
+            submitButton.disabled = true;
+            submitButton.textContent = 'שולח...';
+
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // חשוב כדי למנוע שגיאות CORS
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    redirect: 'follow',
+                    body: JSON.stringify(data),
+                });
+                
+                // בגלל 'no-cors' לא ניתן לקרוא את תוכן התגובה,
+                // לכן נניח הצלחה ונציג הודעה חיובית.
+                // Apps Script יטפל בהודעות שגיאה בצד השרת.
+                
+                showStatus('תודה! הפרטים נשלחו בהצלחה. נחזור אליכם מיד!', 'success');
+                form.reset(); // איפוס הטופס רק לאחר הצלחה
+
+            } catch (error) {
+                console.error('שגיאה בשליחה:', error);
+                // במקרה של שגיאת רשת, נציג הודעה על כשלון
+                showStatus('אירעה שגיאה בשליחה. נסה שוב או צור קשר בטלפון.', 'error');
+            } finally {
+                // שחרור כפתור וטקסט רגיל
+                submitButton.disabled = false;
+                submitButton.textContent = 'הצטרפו למבצע עכשיו!';
+            }
+        });
+
+        // ====================================
+        // Three.js Background Animation: Network Dots
+        // ====================================
+        
+        const canvas = document.getElementById('network-canvas');
+        let camera, scene, renderer;
+        let particles, particleCount = 200;
+        let geometry, material;
+        let mouseX = 0, mouseY = 0;
+        let windowHalfX = window.innerWidth / 2;
+        let windowHalfY = window.innerHeight / 2;
+        
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 1, 10000);
+            camera.position.z = 1000;
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Particles setup
+            geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const color = new THREE.Color();
+            
+            material = new THREE.PointsMaterial({
+                size: 5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
+            });
+            
+            // Particle attributes
+            for (let i = 0; i < particleCount; i++) {
+                // Position (randomly in a large cube)
+                const x = Math.random() * 2000 - 1000;
+                const y = Math.random() * 2000 - 1000;
+                const z = Math.random() * 2000 - 1000;
+                positions.push(x, y, z);
+
+                // Color (subtle cyan/blue glow)
+                const r = 0.1;
+                const g = 0.5 + Math.random() * 0.5;
+                const b = 0.5 + Math.random() * 0.5;
+                color.setRGB(r, g, b);
+                colors.push(color.r, color.g, color.b);
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Event listeners for interactivity
+            document.addEventListener('mousemove', onDocumentMouseMove, false);
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            windowHalfX = window.innerWidth / 2;
+            windowHalfY = window.innerHeight / 2;
+            
+            // Resize canvas element to fill container
+            const containerWidth = canvas.parentElement.clientWidth;
+            const containerHeight = canvas.parentElement.clientHeight;
+            
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            
+            camera.aspect = containerWidth / containerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(containerWidth, containerHeight);
+        }
+        
+        function onDocumentMouseMove(event) {
+            mouseX = (event.clientX - windowHalfX);
+            mouseY = (event.clientY - windowHalfY);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+        
+        function render() {
+            // Move camera based on mouse position (subtle effect)
+            camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.01;
+            camera.position.y += (-mouseY * 0.5 - camera.position.y) * 0.01;
+            camera.lookAt(scene.position);
+            
+            // Rotate particles slowly
+            particles.rotation.x += 0.0005;
+            particles.rotation.y += 0.001;
+            
+            // Move particles slightly towards the camera for a sense of movement
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 2] += 0.5; // Move Z coordinate
+                // Reset Z if too close
+                if (positions[i + 2] > 1000) {
+                    positions[i + 2] = -1000; 
+                }
+            }
+            particles.geometry.attributes.position.needsUpdate = true; // Tell Three.js to re-render positions
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            init();
+            onWindowResize(); // Set initial size
+            animate();
+        };
+
+        // Handle touch events for mobile rotation (simple swipe)
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        canvas.addEventListener('touchstart', (event) => {
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+            event.preventDefault();
+        }, false);
+
+        canvas.addEventListener('touchmove', (event) => {
+            const touchX = event.touches[0].clientX;
+            const touchY = event.touches[0].clientY;
+            
+            mouseX = (touchX - windowHalfX) * 2; // Increase sensitivity for touch
+            mouseY = (touchY - windowHalfY) * 2;
+            event.preventDefault();
+        }, false);
+    </script>
+</body>
+</html>
