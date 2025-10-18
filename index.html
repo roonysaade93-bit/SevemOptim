@@ -5,301 +5,170 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>שדרוג לסיבים אופטיים | FiberPro - 10 מ"ב ב-1,452 ש"ח</title>
     <meta name="description" content="התחברות לסיבים אופטיים לביתך. מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח, 24/7 תמיכה טכנית, הקמה תוך 2-4 שעות. הצטרף עכשיו!"/>
-    
-    <!-- Open Graph Tags (לשיתוף ברשתות חברתיות) -->
+
+    <!-- Open Graph Tags -->
     <meta property="og:type" content="website"/>
     <meta property="og:title" content="התחברות לסיבים אופטיים | FiberPro"/>
     <meta property="og:description" content="מבצע מטורף: 10 מ"ב ב-1,452 ש"ח + הקמה מהירה."/>
     <meta property="og:image" content="https://yoursite.com/og-image.jpg"/>
     <meta property="og:url" content="https://yoursite.com/"/>
+
+    <!-- טעינת jQuery - נחוץ לקוד הקיים -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- קישור לפונטים ו-CSS קריטי -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
-    <!-- Critical CSS - Dark Tech Theme -->
+    <!-- CSS מקורי (כפי שהיה בתמונה) -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
-        
-        :root {
-            --bg-primary: #0a0a0a;
-            --bg-secondary: #121212;
-            --bg-card: #1a1a1a;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --accent-cyan: #00ffff;
-            --accent-blue: #00aaff;
-            --accent-purple: #8000ff;
-            --glow-cyan: 0 0 20px rgba(0, 255, 255, 0.5);
-            --glow-blue: 0 0 20px rgba(0, 128, 255, 0.5);
-        }
-        
-        * {
+        body {
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            background-color: #f4f4f4;
+            color: #333;
+            text-align: right;
         }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        h1, h2, h3 {
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-        }
-
-        .gradient-bg {
-            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 50%, var(--bg-primary) 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* אפקט הברקה דק סביב אלמנטים */
-        .cyber-border {
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 
-                inset 0 0 20px rgba(0, 255, 255, 0.05),
-                0 0 20px rgba(0, 255, 255, 0.05);
-            position: relative;
-            border-radius: 8px;
-        }
-
-        /* אפקט זוהר חכם באמצעות Before */
-        .cyber-border::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-blue), var(--accent-purple));
-            border-radius: 10px;
-            z-index: -1;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .cyber-border:hover::before {
-            opacity: 0.3;
-        }
-
-        .glow-text {
-            text-shadow: 0 0 8px var(--accent-cyan);
-            color: var(--accent-cyan);
-            transition: text-shadow 0.3s;
-        }
-        
-        .glow-text-blue {
-            text-shadow: 0 0 8px var(--accent-blue);
-            color: var(--accent-blue);
-        }
-
-        /* כפתורים סייבריים */
-        .btn-cyber {
-            padding: 14px 30px;
-            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-blue));
-            color: var(--bg-primary);
-            font-weight: 700;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
-        }
-
-        .btn-cyber:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
-        }
-
-        /* אנימציית גבול מודגשת */
-        @keyframes bgPulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-        
-        /* רשת רקע */
-        .network-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            opacity: 0.08; /* שמרני יותר */
-        }
-        
-        /* Layout */
         .container {
             width: 90%;
             max-width: 1200px;
             margin: 0 auto;
         }
 
-        section {
-            padding: 80px 0;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Hero Section */
-        #hero {
-            padding-top: 100px;
-            padding-bottom: 100px;
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 0;
             text-align: center;
         }
-        
-        #hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
-            margin-bottom: 20px;
-            line-height: 1.2;
-        }
-        
-        #hero p {
-            font-size: clamp(1.1rem, 2vw, 1.5rem);
-            color: var(--text-secondary);
-            margin-bottom: 40px;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .cta-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
+
+        header h1 {
+            margin: 0;
+            font-size: 2em;
         }
 
-        /* Form Card */
+        #hero {
+            background-color: #e9ecef;
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        #hero h2 {
+            font-size: 3em;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+
+        #hero p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .cta-button:hover {
+            background-color: #218838;
+        }
+
+        /* סגנון טופס מקורי */
         .form-card {
-            background: var(--bg-card);
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 450px;
-            margin: 40px auto 0;
-            box-shadow: var(--glow-blue);
-            animation: bgPulse 2s infinite alternate;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 30px auto;
+            text-align: right;
+            border: 2px solid #007bff;
         }
 
         .form-card h3 {
+            text-align: center;
+            color: #007bff;
             margin-bottom: 20px;
-            color: var(--accent-cyan);
-            font-size: 1.8rem;
         }
-        
+
         .form-group {
             margin-bottom: 15px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+            font-weight: bold;
         }
-        
+
         .form-group input, .form-group textarea {
             width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
+            padding: 10px;
+            border: 1px solid #ccc;
             border-radius: 4px;
-            transition: border-color 0.3s;
+            box-sizing: border-box;
         }
 
-        .form-group input:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: var(--accent-cyan);
-            box-shadow: 0 0 5px var(--accent-cyan);
+        .form-group button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s;
         }
 
-        /* Features Section */
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+
+        /* סקשן פיצ'רים (תחתית) */
         #features {
-            background: var(--bg-secondary);
+            padding: 40px 0;
+            background-color: white;
             text-align: center;
         }
-        
+
         #features h2 {
-            margin-bottom: 60px;
-            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            color: #007bff;
+            margin-bottom: 40px;
         }
 
         .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
         }
-        
+
         .feature-item {
-            background: var(--bg-card);
-            padding: 30px;
+            flex-basis: calc(33% - 20px);
+            padding: 20px;
+            border: 1px solid #eee;
             border-radius: 8px;
-            text-align: right;
-            transition: transform 0.3s, box-shadow 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .feature-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            text-align: center;
         }
 
         .feature-item h3 {
-            color: var(--accent-cyan);
-            margin-bottom: 15px;
-            font-size: 1.4rem;
-        }
-        
-        .feature-item p {
-            color: var(--text-secondary);
+            color: #28a745;
+            margin-top: 10px;
         }
 
-        .feature-icon {
-            font-size: 3rem;
-            color: var(--accent-blue);
-            margin-bottom: 15px;
-            display: block;
-        }
-
-        /* Footer */
-        footer {
-            background: var(--bg-primary);
-            color: var(--text-secondary);
-            padding: 30px 0;
-            text-align: center;
-            margin-top: auto; /* דוחף לפוטר לתחתית */
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        footer a {
-            color: var(--accent-cyan);
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        
-        footer a:hover {
-            color: var(--text-primary);
-        }
-        
-        /* הודעת סטטוס גלובלית */
-        .status-message {
+        /* סטטוס הודעה מותאם אישית (מחליף alert) */
+        #status-message {
             position: fixed;
             top: 20px;
             right: 20px;
-            background-color: var(--bg-card);
-            color: var(--text-primary);
+            background-color: #333;
+            color: white;
             padding: 15px 25px;
             border-radius: 8px;
             z-index: 1000;
@@ -308,10 +177,11 @@
             visibility: hidden;
             transition: opacity 0.5s, visibility 0.5s, transform 0.5s;
             transform: translateY(-20px);
-            border-right: 4px solid var(--accent-cyan);
+            border-right: 4px solid #007bff;
+            font-weight: bold;
         }
         
-        .status-message.show {
+        #status-message.show {
             opacity: 1;
             visibility: visible;
             transform: translateY(0);
@@ -320,23 +190,23 @@
 </head>
 <body>
 
-    <!-- Canvas for subtle background network animation (using three.js) -->
-    <canvas id="network-canvas" class="network-canvas"></canvas>
-
-    <header class="container">
-        <h3 class="glow-text" style="font-size: 1.5rem; padding: 20px 0;">FiberPro</h3>
+    <header>
+        <div class="container">
+            <h1>FiberPro</h1>
+        </div>
     </header>
 
     <main>
         <!-- Hero Section -->
-        <section id="hero" class="gradient-bg">
+        <section id="hero">
             <div class="container">
-                <h1 class="glow-text-blue">מהפכת הסיבים האופטיים כבר כאן.<br>התחברות תוך <span class="glow-text">4 שעות!</span></h1>
-                <p>חווית גלישה אולטימטיבית, מחיר מיוחד למצטרפים חדשים, ותמיכה טכנית 24/7. המבצע: 10 מ"ב ב-1,452 ש"ח (לשנה).</p>
+                <h2>שדרוג לסיבים אופטיים</h2>
+                <p>התחברות לסיבים אופטיים לביתך. מבצע לזמן מוגבל: 10 מ"ב ב-1,452 ש"ח, 24/7 תמיכה טכנית, הקמה תוך 2-4 שעות. הצטרף עכשיו!</p>
+                <a href="#lead-form" class="cta-button">הצטרף עכשיו!</a>
 
                 <!-- Form Card -->
-                <div class="form-card cyber-border">
-                    <h3 class="glow-text">השאירו פרטים ונחזור אליכם מיד.</h3>
+                <div class="form-card">
+                    <h3>השאירו פרטים ונחזור אליכם מיד.</h3>
                     <form id="lead-form">
                         <input type="hidden" name="clientTimestamp" id="clientTimestamp">
                         <input type="hidden" name="userAgent" id="userAgent">
@@ -359,9 +229,10 @@
                             <textarea id="message" name="message" rows="3" placeholder="כמה מהירות אתם צריכים?"></textarea>
                         </div>
                         
-                        <button type="submit" class="btn-cyber">הצטרפו למבצע עכשיו!</button>
+                        <div class="form-group">
+                            <button type="submit">הצטרפו למבצע עכשיו!</button>
+                        </div>
                     </form>
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 15px;">*אין התחייבות. הנציג שלנו יחזור אליכם עם כל הפרטים.</p>
                 </div>
             </div>
         </section>
@@ -369,27 +240,19 @@
         <!-- Features Section -->
         <section id="features">
             <div class="container">
-                <h2 class="glow-text">למה לבחור ב-FiberPro?</h2>
+                <h2>למה לבחור ב-FiberPro?</h2>
                 <div class="feature-grid">
-                    <div class="feature-item cyber-border">
-                        <i class="feature-icon">⚡</i>
-                        <h3>מהירות שיא (עד 1000 מ"ב)</h3>
+                    <div class="feature-item">
+                        <h3>מהירות שיא</h3>
                         <p>גלישה, סטרימינג והורדות במהירויות שלא הכרתם. מוכנים ל-8K ללא גמגום?</p>
                     </div>
-                    <div class="feature-item cyber-border">
-                        <i class="feature-icon">🛠️</i>
+                    <div class="feature-item">
                         <h3>התקנה מהירה</h3>
                         <p>הקמה ופריסת הסיבים לביתך תוך 2-4 שעות מרגע ההזמנה. אנחנו עובדים מהר!</p>
                     </div>
-                    <div class="feature-item cyber-border">
-                        <i class="feature-icon">🛡️</i>
+                    <div class="feature-item">
                         <h3>תמיכה 24/7</h3>
                         <p>הצוות הטכני שלנו זמין עבורך מסביב לשעון, בכל יום בשבוע. תמיד כאן בשבילך.</p>
-                    </div>
-                    <div class="feature-item cyber-border">
-                        <i class="feature-icon">💰</i>
-                        <h3>מחיר מנצח לשנה</h3>
-                        <p>חבילת הפרימיום שלנו במחיר מבצע בלעדי למצטרפים חדשים. הסיבים הכי משתלמים בשוק.</p>
                     </div>
                 </div>
             </div>
@@ -403,13 +266,12 @@
     </footer>
     
     <!-- הודעת סטטוס (מחליפה את ה-alert) -->
-    <div id="status-message" class="status-message" dir="rtl"></div>
+    <div id="status-message" dir="rtl"></div>
     
-    <!-- JavaScript Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- JavaScript המקורי -->
     <script>
         // ====================================
-        // JavaScript Logic: Form Submission & UI
+        // JavaScript Logic: Form Submission
         // ====================================
 
         const form = document.getElementById('lead-form');
@@ -418,8 +280,7 @@
         const userAgent = document.getElementById('userAgent');
         
         // ⚠️ חובה לעדכן לכתובת ה-Apps Script URL שלך!
-        // הכתובת צריכה להסתיים ב-/exec
-        const APPS_SCRIPT_URL = "DEPLOYMENT_URL_HERE"; 
+        const APPS_SCRIPT_URL = "APPS_SCRIPT_URL_HERE"; 
 
         /**
          * מציג הודעת סטטוס גלובלית בפינה
@@ -431,8 +292,11 @@
             statusMessage.className = 'status-message show';
             
             // שינוי צבע הגבול לפי סוג ההודעה
-            statusMessage.style.borderRightColor = type === 'success' ? 'var(--accent-cyan)' : '#f44336';
-            
+            statusMessage.style.borderRightColor = type === 'success' ? '#28a745' : '#dc3545';
+            statusMessage.style.backgroundColor = type === 'success' ? '#d4edda' : '#f8d7da';
+            statusMessage.style.color = type === 'success' ? '#155724' : '#721c24';
+            statusMessage.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+
             setTimeout(() => {
                 statusMessage.classList.remove('show');
             }, 5000);
@@ -460,9 +324,16 @@
             submitButton.textContent = 'שולח...';
 
             try {
+                // בדיקה אם הכתובת היא ברירת מחדל
+                if (APPS_SCRIPT_URL === "APPS_SCRIPT_URL_HERE") {
+                    showStatus('שגיאה: יש לעדכן את APPS_SCRIPT_URL בכתובת הפריסה שלך.', 'error');
+                    console.error("Please update APPS_SCRIPT_URL with your actual Google Apps Script deployment URL.");
+                    return; // עצירת השליחה
+                }
+
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // חשוב כדי למנוע שגיאות CORS
+                    mode: 'no-cors', 
                     cache: 'no-cache',
                     headers: {
                         'Content-Type': 'application/json',
@@ -472,8 +343,7 @@
                 });
                 
                 // בגלל 'no-cors' לא ניתן לקרוא את תוכן התגובה,
-                // לכן נניח הצלחה ונציג הודעה חיובית.
-                // Apps Script יטפל בהודעות שגיאה בצד השרת.
+                // לכן נניח הצלחה.
                 
                 showStatus('תודה! הפרטים נשלחו בהצלחה. נחזור אליכם מיד!', 'success');
                 form.reset(); // איפוס הטופס רק לאחר הצלחה
@@ -488,147 +358,6 @@
                 submitButton.textContent = 'הצטרפו למבצע עכשיו!';
             }
         });
-
-        // ====================================
-        // Three.js Background Animation: Network Dots
-        // ====================================
-        
-        const canvas = document.getElementById('network-canvas');
-        let camera, scene, renderer;
-        let particles, particleCount = 200;
-        let geometry, material;
-        let mouseX = 0, mouseY = 0;
-        let windowHalfX = window.innerWidth / 2;
-        let windowHalfY = window.innerHeight / 2;
-        
-        function init() {
-            // Scene setup
-            scene = new THREE.Scene();
-            
-            // Camera setup
-            camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 1, 10000);
-            camera.position.z = 1000;
-            
-            // Renderer setup
-            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            
-            // Particles setup
-            geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            const color = new THREE.Color();
-            
-            material = new THREE.PointsMaterial({
-                size: 5,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                sizeAttenuation: true
-            });
-            
-            // Particle attributes
-            for (let i = 0; i < particleCount; i++) {
-                // Position (randomly in a large cube)
-                const x = Math.random() * 2000 - 1000;
-                const y = Math.random() * 2000 - 1000;
-                const z = Math.random() * 2000 - 1000;
-                positions.push(x, y, z);
-
-                // Color (subtle cyan/blue glow)
-                const r = 0.1;
-                const g = 0.5 + Math.random() * 0.5;
-                const b = 0.5 + Math.random() * 0.5;
-                color.setRGB(r, g, b);
-                colors.push(color.r, color.g, color.b);
-            }
-            
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            
-            particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            // Event listeners for interactivity
-            document.addEventListener('mousemove', onDocumentMouseMove, false);
-            window.addEventListener('resize', onWindowResize, false);
-        }
-
-        function onWindowResize() {
-            windowHalfX = window.innerWidth / 2;
-            windowHalfY = window.innerHeight / 2;
-            
-            // Resize canvas element to fill container
-            const containerWidth = canvas.parentElement.clientWidth;
-            const containerHeight = canvas.parentElement.clientHeight;
-            
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            
-            camera.aspect = containerWidth / containerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(containerWidth, containerHeight);
-        }
-        
-        function onDocumentMouseMove(event) {
-            mouseX = (event.clientX - windowHalfX);
-            mouseY = (event.clientY - windowHalfY);
-        }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            render();
-        }
-        
-        function render() {
-            // Move camera based on mouse position (subtle effect)
-            camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.01;
-            camera.position.y += (-mouseY * 0.5 - camera.position.y) * 0.01;
-            camera.lookAt(scene.position);
-            
-            // Rotate particles slowly
-            particles.rotation.x += 0.0005;
-            particles.rotation.y += 0.001;
-            
-            // Move particles slightly towards the camera for a sense of movement
-            const positions = particles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 2] += 0.5; // Move Z coordinate
-                // Reset Z if too close
-                if (positions[i + 2] > 1000) {
-                    positions[i + 2] = -1000; 
-                }
-            }
-            particles.geometry.attributes.position.needsUpdate = true; // Tell Three.js to re-render positions
-
-            renderer.render(scene, camera);
-        }
-
-        window.onload = function() {
-            init();
-            onWindowResize(); // Set initial size
-            animate();
-        };
-
-        // Handle touch events for mobile rotation (simple swipe)
-        let touchStartX = 0;
-        let touchStartY = 0;
-        
-        canvas.addEventListener('touchstart', (event) => {
-            touchStartX = event.touches[0].clientX;
-            touchStartY = event.touches[0].clientY;
-            event.preventDefault();
-        }, false);
-
-        canvas.addEventListener('touchmove', (event) => {
-            const touchX = event.touches[0].clientX;
-            const touchY = event.touches[0].clientY;
-            
-            mouseX = (touchX - windowHalfX) * 2; // Increase sensitivity for touch
-            mouseY = (touchY - windowHalfY) * 2;
-            event.preventDefault();
-        }, false);
     </script>
 </body>
 </html>
